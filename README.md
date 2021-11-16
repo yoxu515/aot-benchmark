@@ -35,20 +35,20 @@ Pre-trained models and corresponding results reproduced by this project can be f
     Please follow the below instruction to prepare datasets in each correspondding folder.
     * **Static** 
     
-    `datasets/Static`: pre-training dataset with static images. A guidance is in [AFB-URR](https://github.com/xmlyqing00/AFB-URR).
+        `datasets/Static`: pre-training dataset with static images. A guidance is in [AFB-URR](https://github.com/xmlyqing00/AFB-URR).
     * **YouTube-VOS**
 
-    A commonly-used large-scale VOS dataset.
+        A commonly-used large-scale VOS dataset.
 
-    `datasets/YTB/2019`: version 2019, download [link](https://drive.google.com/drive/folders/1BWzrCWyPEmBEKm0lOHe5KLuBuQxUSwqz?usp=sharing). `train` is required for training. `valid` (6fps) and `valid_all_frames` (30fps, optional) are used for evaluation.
+        `datasets/YTB/2019`: version 2019, download [link](https://drive.google.com/drive/folders/1BWzrCWyPEmBEKm0lOHe5KLuBuQxUSwqz?usp=sharing). `train` is required for training. `valid` (6fps) and `valid_all_frames` (30fps, optional) are used for evaluation.
 
-    `datasets/YTB/2018`: version 2018, download [link](https://drive.google.com/drive/folders/1bI5J1H3mxsIGo7Kp-pPZU8i6rnykOw7f?usp=sharing). Only `valid` (6fps) and `valid_all_frames` (30fps, optional) are required for this project and used for evaluation.
+        `datasets/YTB/2018`: version 2018, download [link](https://drive.google.com/drive/folders/1bI5J1H3mxsIGo7Kp-pPZU8i6rnykOw7f?usp=sharing). Only `valid` (6fps) and `valid_all_frames` (30fps, optional) are required for this project and used for evaluation.
 
     * **DAVIS**
 
-    A commonly-used small-scale VOS dataset.
+        A commonly-used small-scale VOS dataset.
 
-    `datasets/DAVIS`: [TrainVal](https://data.vision.ee.ethz.ch/csergi/share/davis/DAVIS-2017-trainval-480p.zip) (480p) contains both the training and validation split. [Test-Dev](https://data.vision.ee.ethz.ch/csergi/share/davis/DAVIS-2017-test-dev-480p.zip) (480p) contains the Test-dev split. The [full-resolution version](https://davischallenge.org/davis2017/code.html) is also supported for training and evluation but not required.
+        `datasets/DAVIS`: [TrainVal](https://data.vision.ee.ethz.ch/csergi/share/davis/DAVIS-2017-trainval-480p.zip) (480p) contains both the training and validation split. [Test-Dev](https://data.vision.ee.ethz.ch/csergi/share/davis/DAVIS-2017-test-dev-480p.zip) (480p) contains the Test-dev split. The [full-resolution version](https://davischallenge.org/davis2017/code.html) is also supported for training and evluation but not required.
 
 
 2. Prepare ImageNet Pre-trained encoders
