@@ -14,6 +14,12 @@ A modular reference PyTorch implementation of Associating Objects with Transform
 - **Mixed precision training and inference** 
 - **Test-time augmentation:** multi-scale and flipping augmentations are supported.
 
+
+##TODO
+- [ ] Code documentation
+- [ ] Demo tool
+- [ ] Adding your own dataset
+
 ## Requirements
    * Python3
    * pytorch >= 1.7.0 and torchvision
