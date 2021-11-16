@@ -87,8 +87,7 @@ Wating
   title={Associating Objects with Transformers for Video Object Segmentation},
   author={Yang, Zongxin and Wei, Yunchao and Yang, Yi},
   booktitle={Advances in Neural Information Processing Systems (NeurIPS)},
-  year={2021},
-  organization={Springer}
+  year={2021}
 }
 ```
 
