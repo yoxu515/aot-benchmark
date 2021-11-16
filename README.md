@@ -82,6 +82,7 @@ Coming
 Waiting
 
 ## Citations
+Please consider citing the related paper(s) in your publications if it helps your research.
 ```
 @inproceedings{yang2021aot,
   title={Associating Objects with Transformers for Video Object Segmentation},
