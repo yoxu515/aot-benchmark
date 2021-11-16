@@ -35,7 +35,7 @@ Pre-trained models and corresponding results reproduced by this project can be f
     Please follow the below instruction to prepare datasets in each correspondding folder.
     * **Static** 
     
-        `datasets/Static`: pre-training dataset with static images. A guidance is in [AFB-URR](https://github.com/xmlyqing00/AFB-URR).
+        `datasets/Static`: pre-training dataset with static images. A guidance can be found in [AFB-URR](https://github.com/xmlyqing00/AFB-URR).
     * **YouTube-VOS**
 
         A commonly-used large-scale VOS dataset.
