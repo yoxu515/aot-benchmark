@@ -15,7 +15,7 @@ A modular reference PyTorch implementation of Associating Objects with Transform
 - **Test-time augmentation:** multi-scale and flipping augmentations are supported.
 
 
-##TODO
+## TODO
 - [ ] Code documentation
 - [ ] Demo tool
 - [ ] Adding your own dataset
