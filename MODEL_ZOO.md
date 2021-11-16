@@ -22,6 +22,8 @@ Stages:
 | R50-AOTL   |   14.9    | [gdrive](https://drive.google.com/file/d/1hS4JIvOXeqvbs-CokwV6PwZV-EvzE6x8/view?usp=sharing) | [gdrive](https://drive.google.com/file/d/1qJDYn3Ibpquu4ffYoQmVjg1YCbr2JQep/view?usp=sharing) |
 | SwinB-AOTL |   65.4    | [gdrive](https://drive.google.com/file/d/1LlhKQiXD8JyZGGs3hZiNzcaCLqyvL9tj/view?usp=sharing) | [gdrive](https://drive.google.com/file/d/192jCGQZdnuTsvX-CVra-KVZl2q1ZR0vW/view?usp=sharing) |
 
+To use our pre-trained model to infer, an simple way is to set `--ckpt_path` to your downloaded file when running `eval.py`.
+
 ### YouTube-VOS 2018 val
 `ALL-F`: all frames. The default evaluation setting of YouTube-VOS is 6fps, but 30fps sequences are also supplied. We noticed that many VOS methods prefer to evaluate with 30fps videos. Thus, we also supply our results here.
 | Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | J Unseen |  F seen  | F unseen | Prediction |
