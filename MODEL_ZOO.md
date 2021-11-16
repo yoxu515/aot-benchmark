@@ -9,6 +9,8 @@
 - `PRE`: the pre-training stage with static images.
 
 - `PRE_YTB_DAV`: the main-training stage with YouTube-VOS and DAVIS. All the kinds of evaluation shares an **identical** model and the **same** parameters.
+
+
 | Model      | Param (M) |                                             PRE                                              |                                         PRE_YTB_DAV                                          |
 |:---------- |:---------:|:--------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------:|
 | AOTT       |    5.7    | [gdrive](https://drive.google.com/file/d/1_513h8Hok9ySQPMs_dHgX5sPexUhyCmy/view?usp=sharing) | [gdrive](https://drive.google.com/file/d/1owPmwV4owd_ll6GuilzklqTyAd0ZvbCu/view?usp=sharing) |
