@@ -70,7 +70,7 @@ Pre-trained models and corresponding results reproduced by this project can be f
 
     The [example script](train_eval.sh) will train AOTT with 2 stages using 4 GPUs and auto-mixed precision (`--amp`). The first stage is a pre-training stage using `Static` dataset, and the second stage is main-training stage, which uses both `YouTube-VOS 2019 train` and `DAVIS-2017 train` for training, resulting in a model can generalize to different domains (YouTube-VOS and DAVIS) and different frame rate (6fps and 24fps).
 
-    Notably, you can use only the `YouTube-VOS 2019 train` split in the second stage, which leads to better YouTube-VOS performance on unseen classes.
+    Notably, you can use only the `YouTube-VOS 2019 train` split in the second stage by changing `pre_ytb_dav` to `pre_ytb`, which leads to better YouTube-VOS performance on unseen classes. Besides, if you don't want to do the first stage, you can start the training from stage `ytb`, but the performance will drop about 1~2% absolutely.
 
     After the training is finished, the [example script](train_eval.sh) will evaluate the model on YouTube-VOS and DAVIS, and the results will be packed into Zip files. For calculating scores, please use offical YouTube-VOS servers ([2018 server](https://competitions.codalab.org/competitions/19544) and [2019 server](https://competitions.codalab.org/competitions/20127)) and offical [DAVIS toolkit](https://github.com/davisvideochallenge/davis2017-evaluation).
 
