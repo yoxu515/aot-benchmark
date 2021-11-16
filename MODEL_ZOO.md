@@ -6,6 +6,8 @@
 - test-time augmentations were not used.
 
 ### Pre-trained Models
+Stages:
+
 - `PRE`: the pre-training stage with static images.
 
 - `PRE_YTB_DAV`: the main-training stage with YouTube-VOS and DAVIS. All the kinds of evaluation shares an **identical** model and the **same** parameters.
