@@ -79,7 +79,7 @@ Pre-trained models and corresponding results reproduced by this project can be f
 Coming
 
 ## Troubleshooting
-Wating
+Waiting
 
 ## Citations
 ```
