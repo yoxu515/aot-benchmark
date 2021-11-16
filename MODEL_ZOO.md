@@ -2,8 +2,8 @@
 
 ### Environment
 - 4/1 NVIDIA V100 GPUs for training/evaluation.
-- auto-mixed precision is enabled in training but disabled in evaluation.
-- test-time augmentations are not used.
+- auto-mixed precision was enabled in training but disabled in evaluation.
+- test-time augmentations were not used.
 
 ### Pre-trained Models
 `PRE`: the pre-training stage with static images.
