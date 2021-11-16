@@ -1,9 +1,11 @@
 ## Model Zoo and Results
 
-### Environment
+### Environment and Settings
 - 4/1 NVIDIA V100 GPUs for training/evaluation.
-- auto-mixed precision was enabled in training but disabled in evaluation.
-- test-time augmentations were not used.
+- Auto-mixed precision was enabled in training but disabled in evaluation.
+- Test-time augmentations were not used.
+- The inference resolution of DAVIS/YouTube-VOS was 480p/1.3x480p as [CFBI](https://github.com/z-x-yang/CFBI).
+- Multi-object FPS was recorded instead of single-object one.
 
 ### Pre-trained Models
 Stages:
