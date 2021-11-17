@@ -338,8 +338,8 @@ class Evaluator(object):
                                 engine = all_engines[aug_idx]
 
                                 current_img = samples[aug_idx]['current_img']
-                                current_label = flip_pred_label if sample[
-                                    'meta']['flip'] else pred_label
+                                current_label = flip_pred_label if samples[
+                                    aug_idx]['meta']['flip'] else pred_label
                                 current_label = F.interpolate(
                                     current_label,
                                     size=engine.input_size_2d,
@@ -356,8 +356,8 @@ class Evaluator(object):
                                         pred_label, 3)
 
                                 for aug_idx in range(len(samples)):
-                                    current_label = flip_pred_label if sample[
-                                        'meta']['flip'] else pred_label
+                                    current_label = flip_pred_label if samples[
+                                        aug_idx]['meta']['flip'] else pred_label
                                     current_label = F.interpolate(
                                         current_label,
                                         size=engine.input_size_2d,
@@ -368,8 +368,8 @@ class Evaluator(object):
                                     flip_pred_prob = flip_tensor(pred_prob, 3)
 
                                 for aug_idx in range(len(samples)):
-                                    current_prob = flip_pred_prob if sample[
-                                        'meta']['flip'] else pred_prob
+                                    current_prob = flip_pred_prob if samples[
+                                        aug_idx]['meta']['flip'] else pred_prob
                                     current_prob = F.interpolate(
                                         current_prob,
                                         size=engine.input_size_2d,
