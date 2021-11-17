@@ -65,6 +65,7 @@ Pre-trained models and corresponding results reproduced by this project can be f
     - [MobileNet-V3](https://download.pytorch.org/models/mobilenet_v3_large-8738ca79.pth)
     - [ResNet-50](https://download.pytorch.org/models/resnet50-0676ba61.pth)
     - [ResNet-101](https://download.pytorch.org/models/resnet101-63fe2227.pth)
+    - [ResNeSt-50](https://github.com/zhanghang1989/ResNeSt/releases/download/weights_step1/resnest50-528c19ca.pth)
     - [ResNeSt-101](https://github.com/zhanghang1989/ResNeSt/releases/download/weights_step1/resnest101-22405ba7.pth)
     - [Swin-Base](https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_base_patch4_window7_224_22k.pth)
 
