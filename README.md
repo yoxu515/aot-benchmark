@@ -19,6 +19,7 @@ A modular reference PyTorch implementation of Associating Objects with Transform
 - [ ] Code documentation
 - [ ] Demo tool
 - [ ] Adding your own dataset
+- [ ] Results with test-time augmentations in Model Zoo
 
 ## Requirements
    * Python3
