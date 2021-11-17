@@ -28,7 +28,7 @@ To use our pre-trained model to infer, an simple way is to set `--ckpt_path` to 
 
 ### YouTube-VOS 2018 val
 `ALL-F`: all frames. The default evaluation setting of YouTube-VOS is 6fps, but 30fps sequences are also supplied. We noticed that many VOS methods prefer to evaluate with 30fps videos. Thus, we also supply our results here.
-| Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | J Unseen |  F seen  | F unseen | Prediction |
+| Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | J Unseen |  F Seen  | F Unseen | Predictions |
 |:---------- |:-----------:|:--------:|:-----:|:--------:|:--------:|:--------:|:--------:|:--------:|:----:|
 | AOTT       | PRE_YTB_DAV | **41.0** |   √   |   80.9   |   80.0   |   84.7   |   75.2   |   83.5   | [gdrive](https://drive.google.com/file/d/1RGMI5-29Z0odq73rt26eCxOUYUd-fvVv/view?usp=sharing) |
 | AOTT       | PRE_YTB_DAV | **41.0** |       |   80.2   |   80.4   |   85.0   |   73.6   |   81.7   | [gdrive](https://drive.google.com/file/d/1u8mvPRT08ENZHsw9Xf_4C6Sv9BoCzENR/view?usp=sharing) |
@@ -44,7 +44,7 @@ To use our pre-trained model to infer, an simple way is to set `--ckpt_path` to 
 | SwinB-AOTL | PRE_YTB_DAV |   12.1   |       |   84.7   |   84.5   |   89.5   |   78.1   |   86.7   | [gdrive](https://drive.google.com/file/d/1QFowulSY0LHfpsjUV8ZE9rYc55L9DOC7/view?usp=sharing) |
 
 ### YouTube-VOS 2019 val
-| Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | J Unseen |  F seen  | F unseen | Prediction |
+| Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | J Unseen |  F Seen  | F Unseen | Predictions |
 |:---------- |:-----------:|:--------:|:-----:|:--------:|:--------:|:--------:|:--------:|:--------:|:----:|
 | AOTT       | PRE_YTB_DAV | **41.0** |   √   |   80.9   |   79.9   |   84.4   |   75.6   |   83.8   | [gdrive](https://drive.google.com/file/d/1V_5vi9dAXOis_WrDieacSESm7OX20Bv-/view?usp=sharing) |
 | AOTT       | PRE_YTB_DAV | **41.0** |       |   80.0   |   79.8   |   84.2   |   74.1   |   82.1   | [gdrive](https://drive.google.com/file/d/1zzyhN1XYtajte5nbZ7opOdfXeDJgCxC5/view?usp=sharing) |
@@ -61,7 +61,7 @@ To use our pre-trained model to infer, an simple way is to set `--ckpt_path` to 
 
 ### DAVIS-2017 test
 
-| Model      |    Stage    | FPS  |   Mean   | J score  | F score  | Prediction |
+| Model      |    Stage    | FPS  |   Mean   | J Score  | F Score  | Predictions |
 | ---------- |:-----------:|:----:|:--------:|:--------:|:--------:|:----:|
 | AOTT       | PRE_YTB_DAV | **51.4** |   73.7   |   70.0   |   77.3   | [gdrive](https://drive.google.com/file/d/14Pu-6Uz4rfmJ_WyL2yl57KTx_pSSUNAf/view?usp=sharing) |
 | AOTS       | PRE_YTB_DAV | 40.0 |   75.2   |   71.4   |   78.9   | [gdrive](https://drive.google.com/file/d/1zzAPZCRLgnBWuAXqejPPEYLqBxu67Rj1/view?usp=sharing) |
@@ -72,7 +72,7 @@ To use our pre-trained model to infer, an simple way is to set `--ckpt_path` to 
 
 ### DAVIS-2017 val
 
-| Model      |    Stage    | FPS  |   Mean   | J score  |  F score  | Prediction |
+| Model      |    Stage    | FPS  |   Mean   | J Score  |  F Score  | Predictions |
 | ---------- |:-----------:|:----:|:--------:|:--------:|:---------:|:----:|
 | AOTT       | PRE_YTB_DAV | **51.4** |   79.2   |   76.5   |   81.9    | [gdrive](https://drive.google.com/file/d/10OUFhK2Sz-hOJrTDoTI0mA45KO1qodZt/view?usp=sharing) |
 | AOTS       | PRE_YTB_DAV | 40.0 |   82.1   |   79.3   |   84.8    | [gdrive](https://drive.google.com/file/d/1T-JTYyksWlq45jxcLjnRaBvvYUhWgHFH/view?usp=sharing) |
@@ -83,7 +83,7 @@ To use our pre-trained model to infer, an simple way is to set `--ckpt_path` to 
 
 ### DAVIS-2016 val
 
-| Model      |    Stage    | FPS  |   Mean   | J score  | F score  | Prediction |
+| Model      |    Stage    | FPS  |   Mean   | J Score  | F Score  | Predictions |
 | ---------- |:-----------:|:----:|:--------:|:--------:|:--------:|:----:|
 | AOTT       | PRE_YTB_DAV | **51.4** |   87.5   |   86.5   |   88.4   | [gdrive](https://drive.google.com/file/d/1LeW8WQhnylZ3umT7E379KdII92uUsGA9/view?usp=sharing) |
 | AOTS       | PRE_YTB_DAV | 40.0 |   89.6   |   88.6   |   90.5   | [gdrive](https://drive.google.com/file/d/1vqGei5tLu1FPVrTi5bwRAsaGy3Upf7B1/view?usp=sharing) |
