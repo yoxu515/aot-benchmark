@@ -80,7 +80,7 @@ Pre-trained models and corresponding results reproduced by this project can be f
 
     Notably, you can use only the `YouTube-VOS 2019 train` split in the second stage by changing `pre_ytb_dav` to `pre_ytb`, which leads to better YouTube-VOS performance on unseen classes. Besides, if you don't want to do the first stage, you can start the training from stage `ytb`, but the performance will drop about 1~2% absolutely.
 
-    After the training is finished, the [example script](train_eval.sh) will evaluate the model on YouTube-VOS and DAVIS, and the results will be packed into Zip files. For calculating scores, please use offical YouTube-VOS servers ([2018 server](https://competitions.codalab.org/competitions/19544) and [2019 server](https://competitions.codalab.org/competitions/20127)) and offical [DAVIS toolkit](https://github.com/davisvideochallenge/davis2017-evaluation).
+    After the training is finished (about 0.6 day for each stage with 4 Tesla V100 GPUs), the [example script](train_eval.sh) will evaluate the model on YouTube-VOS and DAVIS, and the results will be packed into Zip files. For calculating scores, please use offical YouTube-VOS servers ([2018 server](https://competitions.codalab.org/competitions/19544) and [2019 server](https://competitions.codalab.org/competitions/20127)) and offical [DAVIS toolkit](https://github.com/davisvideochallenge/davis2017-evaluation).
 
 
 ## Adding your own dataset
