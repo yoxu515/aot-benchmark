@@ -107,7 +107,9 @@ class Evaluator(object):
         if cfg.TEST_FLIP:
             eval_name += '_flip'
         if len(cfg.TEST_MULTISCALE) > 1:
-            eval_name += '_ms_' + str(cfg.TEST_MULTISCALE)
+            eval_name += '_ms_' + str(cfg.TEST_MULTISCALE).replace(
+                '.', 'dot').replace('[', '').replace(']', '').replace(
+                    ', ', '_')
 
         if 'youtubevos' in cfg.TEST_DATASET:
             year = int(cfg.TEST_DATASET[-4:])
@@ -256,7 +258,7 @@ class Evaluator(object):
                     for aug_idx in range(len(samples)):
                         if len(all_engines) <= aug_idx:
                             all_engines.append(
-                                build_engine(self.cfg.MODEL_ENGINE,
+                                build_engine(cfg.MODEL_ENGINE,
                                              phase='eval',
                                              aot_model=self.model,
                                              gpu_id=self.gpu,
@@ -268,7 +270,7 @@ class Evaluator(object):
 
                         sample = samples[aug_idx]
 
-                        is_flip = sample['meta']['flip']
+                        is_flipped = sample['meta']['flip']
 
                         obj_nums = sample['meta']['obj_num']
                         imgname = sample['meta']['current_name']
@@ -309,13 +311,13 @@ class Evaluator(object):
                             pred_logit = engine.decode_current_logits(
                                 (ori_height, ori_width))
 
-                            if sample['meta']['flip']:
+                            if is_flipped:
                                 pred_logit = flip_tensor(pred_logit, 3)
 
                             pred_prob = torch.softmax(pred_logit, dim=1)
                             all_preds.append(pred_prob)
 
-                            if not is_flip and current_label is not None and new_obj_label is None:
+                            if not is_flipped and current_label is not None and new_obj_label is None:
                                 new_obj_label = current_label
 
                     if frame_idx > 0:
@@ -336,8 +338,8 @@ class Evaluator(object):
 
                             for aug_idx in range(len(samples)):
                                 engine = all_engines[aug_idx]
-
                                 current_img = samples[aug_idx]['current_img']
+
                                 current_label = flip_pred_label if samples[
                                     aug_idx]['meta']['flip'] else pred_label
                                 current_label = F.interpolate(
@@ -356,6 +358,7 @@ class Evaluator(object):
                                         pred_label, 3)
 
                                 for aug_idx in range(len(samples)):
+                                    engine = all_engines[aug_idx]
                                     current_label = flip_pred_label if samples[
                                         aug_idx]['meta']['flip'] else pred_label
                                     current_label = F.interpolate(
@@ -368,6 +371,7 @@ class Evaluator(object):
                                     flip_pred_prob = flip_tensor(pred_prob, 3)
 
                                 for aug_idx in range(len(samples)):
+                                    engine = all_engines[aug_idx]
                                     current_prob = flip_pred_prob if samples[
                                         aug_idx]['meta']['flip'] else pred_prob
                                     current_prob = F.interpolate(
