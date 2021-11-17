@@ -20,6 +20,7 @@ A modular reference PyTorch implementation of Associating Objects with Transform
 - [ ] Demo tool
 - [ ] Adding your own dataset
 - [ ] Results with test-time augmentations in Model Zoo
+- [ ] Support gradient accumulation
 
 ## Requirements
    * Python3
