@@ -5,6 +5,7 @@
 - Auto-mixed precision was enabled in training but disabled in evaluation.
 - Test-time augmentations were not used.
 - The inference resolution of DAVIS/YouTube-VOS was 480p/1.3x480p as [CFBI](https://github.com/z-x-yang/CFBI).
+- Fully online inference. We passed all the modules frame by frame.
 - Multi-object FPS was recorded instead of single-object one.
 
 ### Pre-trained Models
@@ -24,7 +25,7 @@ Stages:
 | R50-AOTL   |   14.9    | [gdrive](https://drive.google.com/file/d/1hS4JIvOXeqvbs-CokwV6PwZV-EvzE6x8/view?usp=sharing) | [gdrive](https://drive.google.com/file/d/1qJDYn3Ibpquu4ffYoQmVjg1YCbr2JQep/view?usp=sharing) |
 | SwinB-AOTL |   65.4    | [gdrive](https://drive.google.com/file/d/1LlhKQiXD8JyZGGs3hZiNzcaCLqyvL9tj/view?usp=sharing) | [gdrive](https://drive.google.com/file/d/192jCGQZdnuTsvX-CVra-KVZl2q1ZR0vW/view?usp=sharing) |
 
-To use our pre-trained model to infer, an simple way is to set `--ckpt_path` to your downloaded file when running `eval.py`.
+To use our pre-trained model to infer, a simple way is to set `--ckpt_path` to your downloaded file when running `eval.py`.
 
 ### YouTube-VOS 2018 val
 `ALL-F`: all frames. The default evaluation setting of YouTube-VOS is 6fps, but 30fps sequences are also supplied. We noticed that many VOS methods prefer to evaluate with 30fps videos. Thus, we also supply our results here.
