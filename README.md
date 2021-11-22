@@ -43,8 +43,8 @@ python tools/demo.py
 
 Two scenarios are supplied:
 
-- 1001_3iEIq5HBY1s: 44 objects
-- 1007_YCTBBdbKSSg: 43 objects
+- 1001_3iEIq5HBY1s: 44 objects. 1080P.
+- 1007_YCTBBdbKSSg: 43 objects. 1080P.
 
 Results:
 
