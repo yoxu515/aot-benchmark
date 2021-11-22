@@ -40,6 +40,7 @@ To run the demo, download the [checkpoint](https://drive.google.com/file/d/1qJDY
 ```bash
 python tools/demo.py
 ```
+which will predict the given scenarios in the resolution of 1.3x480p.
 
 Two scenarios are supplied:
 
