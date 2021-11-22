@@ -3,9 +3,10 @@
 
 A modular reference PyTorch implementation of Associating Objects with Transformers for Video Object Segmentation (NIPS 2021). [[paper](https://arxiv.org/abs/2106.02638)]
 
-![alt text](source/overview.png "Overview.")
 
-![alt text](source/some_results.png "Some results.")
+<img src="source/overview.png" width="90%"/>
+
+<img src="source/some_results.png" width="81%"/>
 
 ## Highlights
 - **High performance:** up to **85.5%** (R50-AOTL) on YouTube-VOS 2018 and **82.1%** (SwinB-AOTL) on DAVIS-2017 Test-dev under standard settings. 
@@ -17,10 +18,10 @@ A modular reference PyTorch implementation of Associating Objects with Transform
 
 ## TODO
 - [ ] Code documentation
-- [ ] Demo tool
 - [ ] Adding your own dataset
 - [ ] Results with test-time augmentations in Model Zoo
 - [ ] Support gradient accumulation
+- [x] Demo tool
 
 ## Requirements
    * Python3
@@ -30,9 +31,24 @@ A modular reference PyTorch implementation of Associating Objects with Transform
 
 Optional (for better efficiency):
    * Pytorch Correlation (recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension) instead of using `pip`)
+   * scikit-image (if you want to run our **Demo**, please install)
 
-## Demo
-Coming
+## Demo - Panoptic Propagation
+We provide a simple demo to demonstrate AOT's effectiveness. The demo will propagate more than **40** objects, including semantic regions (like sky) and instances (like person), together within a single complex scenario and predict its video panoptic segmentation. .
+
+To run the demo, download the [checkpoint](https://drive.google.com/file/d/1qJDYn3Ibpquu4ffYoQmVjg1YCbr2JQep/view?usp=sharing) of R50-AOTL into `pretrain_models`, and then run:
+```bash
+python tools/demo.py
+```
+
+Two scenarios are supplied:
+
+- 1001_3iEIq5HBY1s: 44 objects
+- 1007_YCTBBdbKSSg: 43 objects
+
+Results:
+
+<img src="source/1001_3iEIq5HBY1s.gif" width="45%"/>  <img src="source/1007_YCTBBdbKSSg.gif" width="45%"/>
 
 ## Model Zoo and Results
 Pre-trained models and corresponding results reproduced by this project can be found in [MODEL_ZOO.md](MODEL_ZOO.md).
