@@ -6,7 +6,7 @@ A modular reference PyTorch implementation of Associating Objects with Transform
 
 <img src="source/overview.png" width="90%"/>
 
-Benckmark examples:
+Benchmark examples:
 
 <img src="source/some_results.png" width="81%"/>
 
