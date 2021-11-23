@@ -12,8 +12,7 @@ Benckmark examples:
 
 General examples (Messi and Kobe):
 
-<img src="source/messi.gif" width="45%"/>
-<img src="source/kobe.gif" width="45%"/>
+<img src="source/messi.gif" width="45%"/> <img src="source/kobe.gif" width="45%"/>
 
 ## Highlights
 - **High performance:** up to **85.5%** (R50-AOTL) on YouTube-VOS 2018 and **82.1%** (SwinB-AOTL) on DAVIS-2017 Test-dev under standard settings. 
