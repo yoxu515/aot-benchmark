@@ -1,12 +1,19 @@
 # AOT (Associating Objects with Transformers) in PyTorch
 
 
-A modular reference PyTorch implementation of Associating Objects with Transformers for Video Object Segmentation (NIPS 2021). [[paper](https://arxiv.org/abs/2106.02638)]
+A modular reference PyTorch implementation of Associating Objects with Transformers for Video Object Segmentation (NeurIPS 2021). [[paper](https://arxiv.org/abs/2106.02638)]
 
 
 <img src="source/overview.png" width="90%"/>
 
+Benckmark examples:
+
 <img src="source/some_results.png" width="81%"/>
+
+General examples (Messi and Kobe):
+
+<img src="source/messi.gif" width="45%"/>
+<img src="source/kobe.gif" width="45%"/>
 
 ## Highlights
 - **High performance:** up to **85.5%** (R50-AOTL) on YouTube-VOS 2018 and **82.1%** (SwinB-AOTL) on DAVIS-2017 Test-dev under standard settings. 
