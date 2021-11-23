@@ -223,9 +223,6 @@ def demo(cfg):
                         output_mask_seq_root,
                         img_name.split('.')[0] + '.png')
 
-                    save_mask(
-                        pred_label.squeeze(0).squeeze(0), output_mask_path)
-
                     pred_label = Image.fromarray(
                         pred_label.squeeze(0).squeeze(0).cpu().numpy().astype(
                             'uint8')).convert('P')
