@@ -36,7 +36,7 @@ To use our pre-trained model to infer, a simple way is to set `--ckpt_path` to y
 | AOTS       | PRE_YTB_DAV |   27.1   |   √   |   83.0   |   82.2   |   87.0   |   77.3   |   85.7   | [gdrive](https://drive.google.com/file/d/1Z0cndyoCw5Na6u-VFRE8CyiIG2RbMIUO/view?usp=sharing) |
 | AOTS       | PRE_YTB_DAV |   27.1   |       |   82.9   |   82.3   |   87.0   |   77.1   |   85.1   | [gdrive](https://drive.google.com/file/d/1a4-rNnxjMuPBq21IKo31WDYZXMPgS7r2/view?usp=sharing) |
 | AOTB       | PRE_YTB_DAV |   20.5   |   √   |   84.1   |   83.6   |   88.5   |   78.0   |   86.5   | [gdrive](https://drive.google.com/file/d/1gFaweB_GTJjHzSD61v_ZsY9K7UEND30O/view?usp=sharing) |
-| AOTB       | PRE_YTB_DAV |   20.5   |       |   84.0   |   83.2   |   88.1   |    78    |   86.5   | [gdrive](https://drive.google.com/file/d/1J5nhuQbbjVLYNXViBIgo21ddQy-MiOLG/view?usp=sharing) |
+| AOTB       | PRE_YTB_DAV |   20.5   |       |   84.0   |   83.2   |   88.1   |    78.0    |   86.5   | [gdrive](https://drive.google.com/file/d/1J5nhuQbbjVLYNXViBIgo21ddQy-MiOLG/view?usp=sharing) |
 | AOTL       | PRE_YTB_DAV |   6.5    |   √   |   84.5   |   83.7   |   88.8   |   78.4   |   87.1   | [gdrive](https://drive.google.com/file/d/1Rpm3e215kJOUvb562lJ2kYg2I3hkrxiM/view?usp=sharing) |
 | AOTL       | PRE_YTB_DAV |   16.0   |       |   84.1   |   83.2   |   88.2   |   78.2   |   86.8   | [gdrive](https://drive.google.com/file/d/1kS8KWQ2L3wzxt44ROLTxwZOT7ZpT8Igc/view?usp=sharing) |
 | R50-AOTL   | PRE_YTB_DAV |   6.4    |   √   | **85.5** |   84.5   |   89.5   | **79.6** | **88.2** | [gdrive](https://drive.google.com/file/d/1NbB54ZhYvfJh38KFOgovYYPjWopd-2TE/view?usp=sharing) |
