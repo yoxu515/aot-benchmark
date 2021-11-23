@@ -463,12 +463,13 @@ class MultiheadLocalAttentionV3(nn.Module):
                                    dim=3)
         global_attn = torch.softmax(global_qk, dim=3)
 
-        agg_bias = torch.einsum('bhnw,hcw->nbhc', local_attn,
-                                self.relative_emb_v).reshape(h * w, n, c)
+        agg_bias = torch.einsum('bhnw,hcw->bhnc', local_attn,
+                                self.relative_emb_v)
 
         agg_value = (global_attn @ v.transpose(-2, -1))
 
-        output = agg_value + agg_bias
+        output = (agg_value + agg_bias).permute(2, 0, 1,
+                                                3).reshape(h * w, n, c)
 
         output = self.projection(output)
 
