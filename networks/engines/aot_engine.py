@@ -103,7 +103,7 @@ class AOTEngine(nn.Module):
 
         all_frame_loss = aux_losses + curr_losses
 
-        boards = {'image': [], 'scalar': []}
+        boards = {'image': {}, 'scalar': {}}
 
         return loss, all_pred_mask, all_frame_loss, boards
 
