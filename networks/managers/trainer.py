@@ -618,11 +618,13 @@ class Trainer(object):
 
                 for key in boards['image'].keys():
                     tmp = boards['image'][key].cpu().numpy()
-                    self.tblogger.add_image('S{}/' + key, tmp, step)
+                    for seq_step in len(tmp):
+                        self.tblogger.add_image('S{}/'.format(seq_step) + key, tmp[seq_step], step)
                 for key in boards['scalar'].keys():
                     tmp = boards['scalar'][key].cpu().numpy()
-                    self.tblogger.add_scalar('S{}/' + key, tmp, step)
-
+                    for seq_step in len(tmp):
+                        self.tblogger.add_scalar('S{}/'.format(seq_step) + key, tmp[seq_step], step)
+                        
                 self.tblogger.flush()
 
         del (boards)
