@@ -617,13 +617,13 @@ class Trainer(object):
                 self.tblogger.add_image('Curr/Mask_Pred', show_preds_sf, step)
 
                 for key in boards['image'].keys():
-                    tmp = boards['image'][key].cpu().numpy()
-                    for seq_step in len(tmp):
-                        self.tblogger.add_image('S{}/'.format(seq_step) + key, tmp[seq_step], step)
+                    tmp = boards['image'][key]
+                    for seq_step in range(len(tmp)):
+                        self.tblogger.add_image('S{}/'.format(seq_step) + key, tmp[seq_step].detach().cpu().numpy(), step)
                 for key in boards['scalar'].keys():
-                    tmp = boards['scalar'][key].cpu().numpy()
-                    for seq_step in len(tmp):
-                        self.tblogger.add_scalar('S{}/'.format(seq_step) + key, tmp[seq_step], step)
+                    tmp = boards['scalar'][key]
+                    for seq_step in range(len(tmp)):
+                        self.tblogger.add_scalar('S{}/'.format(seq_step) + key, tmp[seq_step].detach().cpu().numpy(), step)
                         
                 self.tblogger.flush()
 
