@@ -48,7 +48,7 @@ python tools/demo.py
 ```
 which will predict the given scenarios in the resolution of 1.3x480p.
 
-Two scenarios from [VSPW](https://github.com/VSPW-dataset) are supplied:
+Two scenarios from [VSPW](https://www.vspwdataset.com/home) are supplied:
 
 - 1001_3iEIq5HBY1s: 44 objects. 1080P.
 - 1007_YCTBBdbKSSg: 43 objects. 1080P.
