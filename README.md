@@ -35,8 +35,8 @@ General examples (Messi and Kobe):
    * opencv-python
    * Pillow
 
-Optional (for better efficiency):
-   * Pytorch Correlation (recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension) instead of using `pip`)
+Optional:
+   * **Pytorch Correlation** (used in short-term attention for **better efficiency**. Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension) instead of using `pip`)
    * scikit-image (if you want to run our **Demo**, please install)
 
 ## Demo - Panoptic Propagation
