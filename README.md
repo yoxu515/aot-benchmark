@@ -1,7 +1,7 @@
 # AOT (Associating Objects with Transformers) in PyTorch
 
 
-A modular reference PyTorch implementation of Associating Objects with Transformers for Video Object Segmentation (NeurIPS 2021). [[paper](https://arxiv.org/abs/2106.02638)]
+A modular reference PyTorch implementation of Associating Objects with Transformers for Video Object Segmentation (NeurIPS 2021, Score 8/8/7/8). [[OpenReview](https://openreview.net/forum?id=hl3v8io3ZYt)][[PDF](https://arxiv.org/abs/2106.02638)]
 
 
 <img src="source/overview.png" width="90%"/>
