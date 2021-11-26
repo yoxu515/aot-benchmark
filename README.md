@@ -46,7 +46,7 @@ To run the demo, download the [checkpoint](https://drive.google.com/file/d/1qJDY
 ```bash
 python tools/demo.py
 ```
-which will predict the given scenarios in the resolution of 1.3x480p.
+which will predict the given scenarios in the resolution of 1.3x480p. You can also run this demo with other AOTs ([MODEL_ZOO.md](MODEL_ZOO.md)) by setting `--model` (model type) and `--ckpt_path` (checkpoint path).
 
 Two scenarios from [VSPW](https://www.vspwdataset.com/home) are supplied:
 
