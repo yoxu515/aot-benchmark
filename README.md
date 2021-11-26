@@ -48,7 +48,7 @@ python tools/demo.py
 ```
 which will predict the given scenarios in the resolution of 1.3x480p. You can also run this demo with other AOTs ([MODEL_ZOO.md](MODEL_ZOO.md)) by setting `--model` (model type) and `--ckpt_path` (checkpoint path).
 
-Two scenarios from [VSPW](https://www.vspwdataset.com/home) are supplied:
+Two scenarios from [VSPW](https://www.vspwdataset.com/home) are supplied in [datasets/Demo](datasets/Demo):
 
 - 1001_3iEIq5HBY1s: 44 objects. 1080P.
 - 1007_YCTBBdbKSSg: 43 objects. 1080P.
