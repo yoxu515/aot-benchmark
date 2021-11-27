@@ -58,7 +58,7 @@ Results:
 <img src="source/1001_3iEIq5HBY1s.gif" width="45%"/>  <img src="source/1007_YCTBBdbKSSg.gif" width="45%"/>
 
 ## Model Zoo and Results
-Pre-trained models and corresponding results reproduced by this project can be found in [MODEL_ZOO.md](MODEL_ZOO.md).
+Pre-trained models, benckmark scores, and pre-computed results reproduced by this project can be found in [MODEL_ZOO.md](MODEL_ZOO.md).
 
 ## Getting Started
 1. Prepare datasets:
