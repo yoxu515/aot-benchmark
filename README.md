@@ -15,7 +15,7 @@ General examples (Messi and Kobe):
 <img src="source/messi.gif" width="45%"/> <img src="source/kobe.gif" width="45%"/>
 
 ## Highlights
-- **High performance:** up to **85.5%** (R50-AOTL) on YouTube-VOS 2018 and **82.1%** (SwinB-AOTL) on DAVIS-2017 Test-dev under standard settings. 
+- **High performance:** up to **85.5%** (R50-AOTL) on YouTube-VOS 2018 and **82.1%** (SwinB-AOTL) on DAVIS-2017 Test-dev under standard settings (without any test-time augmentation and post processing). 
 - **High efficiency:** up to **51fps** (AOTT) on DAVIS-2017 (480p) even with **10** objects and **41fps** on YouTube-VOS (1.3x480p). AOT can process multiple objects (less than a pre-defined number, 10 is the default) as efficiently as processing a single object. This project also supports inferring any number of objects together within a video by automatic separation and aggregation.
 - **Multi-GPU training and inference**
 - **Mixed precision training and inference** 
