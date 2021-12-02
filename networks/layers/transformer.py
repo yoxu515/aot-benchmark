@@ -226,7 +226,7 @@ class LongShortTermTransformerBlock(nn.Module):
         if self.droppath_lst:
             tgt = tgt + self.droppath(tgt2 + tgt3)
         else:
-            tgt += tgt2 + tgt3
+            tgt = tgt + tgt2 + tgt3
 
         # Feed-forward
         _tgt = self.norm3(tgt)
