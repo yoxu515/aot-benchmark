@@ -34,9 +34,9 @@ General examples (Messi and Kobe):
    * pytorch >= 1.7.0 and torchvision
    * opencv-python
    * Pillow
+   * Pytorch Correlation (Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension) instead of using `pip`. **The project can also work without this moduel but will lose some efficiency of the short-term attention**.)
 
 Optional:
-   * **Pytorch Correlation** (used in short-term attention for **better efficiency**. Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension) instead of using `pip`)
    * scikit-image (if you want to run our **Demo**, please install)
 
 ## Demo - Panoptic Propagation
