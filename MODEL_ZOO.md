@@ -29,7 +29,7 @@ To use our pre-trained model to infer, a simple way is to set `--ckpt_path` to y
 
 ### YouTube-VOS 2018 val
 `ALL-F`: all frames. The default evaluation setting of YouTube-VOS is 6fps, but 30fps sequences are also supplied. We noticed that many VOS methods prefer to evaluate with 30fps videos. Thus, we also supply our results here.
-| Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | J Unseen |  F Seen  | F Unseen | Predictions |
+| Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | F Seen |  J Unseen  | F Unseen | Predictions |
 |:---------- |:-----------:|:--------:|:-----:|:--------:|:--------:|:--------:|:--------:|:--------:|:----:|
 | AOTT       | PRE_YTB_DAV | **41.0** |   √   |   80.9   |   80.0   |   84.7   |   75.2   |   83.5   | [gdrive](https://drive.google.com/file/d/1RGMI5-29Z0odq73rt26eCxOUYUd-fvVv/view?usp=sharing) |
 | AOTT       | PRE_YTB_DAV | **41.0** |       |   80.2   |   80.4   |   85.0   |   73.6   |   81.7   | [gdrive](https://drive.google.com/file/d/1u8mvPRT08ENZHsw9Xf_4C6Sv9BoCzENR/view?usp=sharing) |
@@ -45,7 +45,7 @@ To use our pre-trained model to infer, a simple way is to set `--ckpt_path` to y
 | SwinB-AOTL | PRE_YTB_DAV |   12.1   |       |   84.7   |   84.5   |   89.5   |   78.1   |   86.7   | [gdrive](https://drive.google.com/file/d/1QFowulSY0LHfpsjUV8ZE9rYc55L9DOC7/view?usp=sharing) |
 
 ### YouTube-VOS 2019 val
-| Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | J Unseen |  F Seen  | F Unseen | Predictions |
+| Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | F Seen |  J Unseen  | F Unseen | Predictions |
 |:---------- |:-----------:|:--------:|:-----:|:--------:|:--------:|:--------:|:--------:|:--------:|:----:|
 | AOTT       | PRE_YTB_DAV | **41.0** |   √   |   80.9   |   79.9   |   84.4   |   75.6   |   83.8   | [gdrive](https://drive.google.com/file/d/1V_5vi9dAXOis_WrDieacSESm7OX20Bv-/view?usp=sharing) |
 | AOTT       | PRE_YTB_DAV | **41.0** |       |   80.0   |   79.8   |   84.2   |   74.1   |   82.1   | [gdrive](https://drive.google.com/file/d/1zzyhN1XYtajte5nbZ7opOdfXeDJgCxC5/view?usp=sharing) |
