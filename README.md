@@ -25,6 +25,18 @@ General examples (Messi and Kobe):
 - **Mixed precision training and inference** 
 - **Test-time augmentation:** multi-scale and flipping augmentations are supported.
 
+## Requirements
+   * Python3
+   * pytorch >= 1.7.0 and torchvision
+   * opencv-python
+   * Pillow
+   * Pytorch Correlation (Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension) instead of using `pip`. **The project can also work without this moduel but will lose some efficiency of the short-term attention**.)
+
+Optional:
+   * scikit-image (if you want to run our **Demo**, please install)
+
+## Model Zoo and Results
+Pre-trained models, benckmark scores, and pre-computed results reproduced by this project can be found in [MODEL_ZOO.md](MODEL_ZOO.md).
 
 ## Demo - Panoptic Propagation
 We provide a simple demo to demonstrate AOT's effectiveness. The demo will propagate more than **40** objects, including semantic regions (like sky) and instances (like person), together within a single complex scenario and predict its video panoptic segmentation.
@@ -44,18 +56,6 @@ Results:
 
 <img src="source/1001_3iEIq5HBY1s.gif" width="45%"/>  <img src="source/1007_YCTBBdbKSSg.gif" width="45%"/>
 
-## Model Zoo and Results
-Pre-trained models, benckmark scores, and pre-computed results reproduced by this project can be found in [MODEL_ZOO.md](MODEL_ZOO.md).
-
-## Requirements
-   * Python3
-   * pytorch >= 1.7.0 and torchvision
-   * opencv-python
-   * Pillow
-   * Pytorch Correlation (Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension) instead of using `pip`. **The project can also work without this moduel but will lose some efficiency of the short-term attention**.)
-
-Optional:
-   * scikit-image (if you want to run our **Demo**, please install)
 
 ## Getting Started
 1. Prepare datasets:
