@@ -26,23 +26,6 @@ General examples (Messi and Kobe):
 - **Test-time augmentation:** multi-scale and flipping augmentations are supported.
 
 
-## TODO
-- [ ] Code documentation
-- [ ] Adding your own dataset
-- [ ] Results with test-time augmentations in Model Zoo
-- [ ] Support gradient accumulation
-- [x] Demo tool
-
-## Requirements
-   * Python3
-   * pytorch >= 1.7.0 and torchvision
-   * opencv-python
-   * Pillow
-   * Pytorch Correlation (Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension) instead of using `pip`. **The project can also work without this moduel but will lose some efficiency of the short-term attention**.)
-
-Optional:
-   * scikit-image (if you want to run our **Demo**, please install)
-
 ## Demo - Panoptic Propagation
 We provide a simple demo to demonstrate AOT's effectiveness. The demo will propagate more than **40** objects, including semantic regions (like sky) and instances (like person), together within a single complex scenario and predict its video panoptic segmentation.
 
@@ -63,6 +46,16 @@ Results:
 
 ## Model Zoo and Results
 Pre-trained models, benckmark scores, and pre-computed results reproduced by this project can be found in [MODEL_ZOO.md](MODEL_ZOO.md).
+
+## Requirements
+   * Python3
+   * pytorch >= 1.7.0 and torchvision
+   * opencv-python
+   * Pillow
+   * Pytorch Correlation (Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension) instead of using `pip`. **The project can also work without this moduel but will lose some efficiency of the short-term attention**.)
+
+Optional:
+   * scikit-image (if you want to run our **Demo**, please install)
 
 ## Getting Started
 1. Prepare datasets:
@@ -110,12 +103,18 @@ Pre-trained models, benckmark scores, and pre-computed results reproduced by thi
 
     After the training is finished (about 0.6 days for each stage with 4 Tesla V100 GPUs), the [example script](train_eval.sh) will evaluate the model on YouTube-VOS and DAVIS, and the results will be packed into Zip files. For calculating scores, please use official YouTube-VOS servers ([2018 server](https://competitions.codalab.org/competitions/19544) and [2019 server](https://competitions.codalab.org/competitions/20127)), official [DAVIS toolkit](https://github.com/davisvideochallenge/davis-2017) (for Val), and official [DAVIS server](https://competitions.codalab.org/competitions/20516#learn_the_details) (for Test-dev).
 
-
 ## Adding your own dataset
 Coming
 
 ## Troubleshooting
 Waiting
+
+## TODO
+- [ ] Code documentation
+- [ ] Adding your own dataset
+- [ ] Results with test-time augmentations in Model Zoo
+- [ ] Support gradient accumulation
+- [x] Demo tool
 
 ## Citations
 Please consider citing the related paper(s) in your publications if it helps your research.
