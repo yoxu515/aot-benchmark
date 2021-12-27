@@ -58,6 +58,8 @@ Results:
 
 
 ## Getting Started
+0. Prepare a valid environment follow the [requirements](#requirements).
+
 1. Prepare datasets:
 
     Please follow the below instruction to prepare datasets in each corresponding folder.
