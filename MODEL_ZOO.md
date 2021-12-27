@@ -28,7 +28,7 @@ Stages:
 To use our pre-trained model to infer, a simple way is to set `--ckpt_path` to your downloaded file when running `eval.py`.
 
 ### YouTube-VOS 2018 val
-`ALL-F`: all frames. The default evaluation setting of YouTube-VOS is 6fps, but 30fps sequences are also supplied. We noticed that many VOS methods prefer to evaluate with 30fps videos. Thus, we also supply our results here.
+`ALL-F`: all frames. The default evaluation setting of YouTube-VOS is 6fps, but 30fps sequences (all the frames) are also supplied by the dataset organizers. We noticed that many VOS methods prefer to evaluate with 30fps videos. Thus, we also supply our results here. Denser video sequences can significantly improve VOS performance when using the memory reading strategy (like AOTL, R50-AOTL, and SwinB-AOTL), but the efficiency will be influenced since more memorized frames are stored for object matching.
 | Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | F Seen |  J Unseen  | F Unseen | Predictions |
 |:---------- |:-----------:|:--------:|:-----:|:--------:|:--------:|:--------:|:--------:|:--------:|:----:|
 | AOTT       | PRE_YTB_DAV | **41.0** |   √   |   80.9   |   80.0   |   84.7   |   75.2   |   83.5   | [gdrive](https://drive.google.com/file/d/1RGMI5-29Z0odq73rt26eCxOUYUd-fvVv/view?usp=sharing) |
