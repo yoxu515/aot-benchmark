@@ -199,9 +199,6 @@ class Evaluator(object):
         total_video_num = len(self.dataset)
         start_eval_time = time.time()
 
-        start = torch.cuda.Event(enable_timing=True)
-        end = torch.cuda.Event(enable_timing=True)
-
         if self.seq_queue is not None:
             if self.rank == 0:
                 for seq_idx in range(total_video_num):
