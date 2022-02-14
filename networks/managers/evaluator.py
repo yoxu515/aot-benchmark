@@ -249,12 +249,12 @@ class Evaluator(object):
                 seq_total_time = 0
                 seq_total_frame = 0
                 seq_pred_masks = {'dense': [], 'sparse': []}
+                seq_timers = []
 
                 for frame_idx, samples in enumerate(seq_dataloader):
 
                     all_preds = []
                     new_obj_label = None
-                    one_frametime = 0
 
                     for aug_idx in range(len(samples)):
                         if len(all_engines) <= aug_idx:
@@ -295,9 +295,6 @@ class Evaluator(object):
 
                         #############################################################
 
-                        if aug_idx == 0:
-                            start.record()
-
                         if frame_idx == 0:
                             _current_label = F.interpolate(
                                 current_label,
@@ -308,6 +305,13 @@ class Evaluator(object):
                                                        frame_step=0,
                                                        obj_nums=obj_nums)
                         else:
+                            if aug_idx == 0:
+                                seq_timers.append([])
+                                now_timer = torch.cuda.Event(
+                                    enable_timing=True)
+                                now_timer.record()
+                                seq_timers[-1].append((now_timer))
+
                             engine.match_propogate_one_frame(current_img)
                             pred_logit = engine.decode_current_logits(
                                 (ori_height, ori_width))
@@ -381,14 +385,15 @@ class Evaluator(object):
                                         mode="nearest")
                                     engine.update_memory(current_prob)
 
-                        end.record()
-                        torch.cuda.synchronize()
-                        one_frametime += start.elapsed_time(end) / 1e3
+                        now_timer = torch.cuda.Event(enable_timing=True)
+                        now_timer.record()
+                        seq_timers[-1].append((now_timer))
 
-                        seq_total_time += one_frametime
-                        seq_total_frame += 1
-                        obj_num = obj_nums[0]
                         if cfg.TEST_FRAME_LOG:
+                            torch.cuda.synchronize()
+                            one_frametime = seq_timers[-1][0].elapsed_time(
+                                seq_timers[-1][1]) / 1e3
+                            obj_num = obj_nums[0]
                             print(
                                 'GPU {} - Frame: {} - Obj Num: {}, Time: {}ms'.
                                 format(self.gpu, imgname[0].split('.')[0],
@@ -422,6 +427,13 @@ class Evaluator(object):
                     save_mask(mask_result['mask'].squeeze(0).squeeze(0),
                               mask_result['path'], mask_result['obj_idx'])
                 del (seq_pred_masks)
+
+                for timer in seq_timers:
+                    torch.cuda.synchronize()
+                    one_frametime = timer[0].elapsed_time(timer[1]) / 1e3
+                    seq_total_time += one_frametime
+                    seq_total_frame += 1
+                del (seq_timers)
 
                 seq_avg_time_per_frame = seq_total_time / seq_total_frame
                 total_time += seq_total_time
