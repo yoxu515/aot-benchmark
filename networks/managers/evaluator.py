@@ -411,7 +411,7 @@ class Evaluator(object):
                                              imgname[0].split('.')[0] +
                                              '.png'),
                                 'mask':
-                                pred_label.squeeze(0).squeeze(0),
+                                pred_label,
                                 'obj_idx':
                                 obj_idx
                             })
