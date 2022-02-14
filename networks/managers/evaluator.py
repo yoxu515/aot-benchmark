@@ -248,6 +248,7 @@ class Evaluator(object):
 
                 seq_total_time = 0
                 seq_total_frame = 0
+                seq_pred_masks = {'dense': [], 'sparse': []}
 
                 for frame_idx, samples in enumerate(seq_dataloader):
 
@@ -392,18 +393,35 @@ class Evaluator(object):
                                 'GPU {} - Frame: {} - Obj Num: {}, Time: {}ms'.
                                 format(self.gpu, imgname[0].split('.')[0],
                                        obj_num, int(one_frametime * 1e3)))
+
                         # Save result
-                        save_mask(
-                            pred_label.squeeze(0).squeeze(0),
+                        seq_pred_masks['dense'].append({
+                            'path':
                             os.path.join(self.result_root, seq_name,
                                          imgname[0].split('.')[0] + '.png'),
-                            obj_idx)
+                            'mask':
+                            pred_label,
+                            'obj_idx':
+                            obj_idx
+                        })
                         if 'all_frames' in cfg.TEST_DATASET_SPLIT and imgname in images_sparse:
-                            save_mask(
-                                pred_label.squeeze(0).squeeze(0),
+                            seq_pred_masks['sparse'].append({
+                                'path':
                                 os.path.join(self.result_root_sparse, seq_name,
                                              imgname[0].split('.')[0] +
-                                             '.png'), obj_idx)
+                                             '.png'),
+                                'mask':
+                                pred_label.squeeze(0).squeeze(0),
+                                'obj_idx':
+                                obj_idx
+                            })
+
+                # Save result
+                for mask_result in seq_pred_masks['dense'] + seq_pred_masks[
+                        'sparse']:
+                    save_mask(mask_result['mask'].squeeze(0).squeeze(0),
+                              mask_result['path'], mask_result['obj_idx'])
+                del (seq_pred_masks)
 
                 seq_avg_time_per_frame = seq_total_time / seq_total_frame
                 total_time += seq_total_time
