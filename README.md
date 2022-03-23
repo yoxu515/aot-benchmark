@@ -8,6 +8,8 @@
 
 A modular reference PyTorch implementation of Associating Objects with Transformers for Video Object Segmentation (NeurIPS 2021, Score 8/8/7/8). [[OpenReview](https://openreview.net/forum?id=hl3v8io3ZYt)][[PDF](https://arxiv.org/abs/2106.02638)]
 
+An extension of AOT, [AOST](https://arxiv.org/abs/2203.11442) (under review), is available now. AOST is a more robust and flexible framework, supporting run-time speed-accuracy trade-offs.
+
 
 <img src="source/overview.png" width="90%"/>
 
