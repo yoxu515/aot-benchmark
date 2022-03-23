@@ -124,6 +124,12 @@ Waiting
 ## Citations
 Please consider citing the related paper(s) in your publications if it helps your research.
 ```
+@article{yang2021aost,
+  title={Associating Objects with Scalable Transformers for Video Object Segmentation},
+  author={Yang, Zongxin and Miao, Jiaxu and Wang, Xiaohan and Wei, Yunchao and Yang, Yi},
+  journal={arXiv preprint arXiv:2203.11442},
+  year={2022}
+}
 @inproceedings{yang2021aot,
   title={Associating Objects with Transformers for Video Object Segmentation},
   author={Yang, Zongxin and Wei, Yunchao and Yang, Yi},
