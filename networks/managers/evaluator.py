@@ -68,9 +68,20 @@ class Evaluator(object):
                 cfg.DIR_CKPT = os.path.join(cfg.DIR_RESULT, 'ema_ckpt')
             cfg.TEST_CKPT_PATH = os.path.join(cfg.DIR_CKPT,
                                               'save_step_%s.pth' % ckpt)
-            self.model, removed_dict = load_network(self.model,
-                                                    cfg.TEST_CKPT_PATH,
-                                                    self.gpu)
+            try:
+                self.model, removed_dict = load_network(
+                    self.model, cfg.TEST_CKPT_PATH, self.gpu)
+            except Exception as inst:
+                self.print_log(inst)
+                self.print_log('Try to use backup checkpoint.')
+                DIR_RESULT = './backup/{}/{}'.format(cfg.EXP_NAME,
+                                                     cfg.STAGE_NAME)
+                DIR_CKPT = os.path.join(DIR_RESULT, 'ema_ckpt')
+                TEST_CKPT_PATH = os.path.join(DIR_CKPT,
+                                              'save_step_%s.pth' % ckpt)
+                self.model, removed_dict = load_network(
+                    self.model, TEST_CKPT_PATH, self.gpu)
+
             if len(removed_dict) > 0:
                 self.print_log(
                     'Remove {} from pretrained model.'.format(removed_dict))
@@ -91,15 +102,19 @@ class Evaluator(object):
         cfg = self.cfg
         self.print_log('Process dataset...')
         eval_transforms = transforms.Compose([
-            tr.MultiRestrictSize(cfg.TEST_MIN_SIZE, cfg.TEST_MAX_SIZE,
-                                 cfg.TEST_FLIP, cfg.TEST_MULTISCALE,
-                                 cfg.MODEL_ALIGN_CORNERS),
+            tr.MultiRestrictSize(cfg.TEST_MAX_SHORT_EDGE,
+                                 cfg.TEST_MAX_LONG_EDGE, cfg.TEST_FLIP,
+                                 cfg.TEST_MULTISCALE, cfg.MODEL_ALIGN_CORNERS),
             tr.MultiToTensor()
         ])
 
+        exp_name = cfg.EXP_NAME
+        if 'aost' in cfg.MODEL_VOS:
+            exp_name += '_L{}'.format(int(cfg.MODEL_LSTT_NUM))
+
         eval_name = '{}_{}_{}_{}_ckpt_{}'.format(cfg.TEST_DATASET,
                                                  cfg.TEST_DATASET_SPLIT,
-                                                 cfg.EXP_NAME, cfg.STAGE_NAME,
+                                                 exp_name, cfg.STAGE_NAME,
                                                  self.ckpt)
 
         if cfg.TEST_EMA:
@@ -252,8 +267,9 @@ class Evaluator(object):
 
                     all_preds = []
                     new_obj_label = None
+                    aug_num = len(samples)
 
-                    for aug_idx in range(len(samples)):
+                    for aug_idx in range(aug_num):
                         if len(all_engines) <= aug_idx:
                             all_engines.append(
                                 build_engine(cfg.MODEL_ENGINE,
@@ -261,8 +277,13 @@ class Evaluator(object):
                                              aot_model=self.model,
                                              gpu_id=self.gpu,
                                              long_term_mem_gap=self.cfg.
-                                             TEST_LONG_TERM_MEM_GAP))
+                                             TEST_LONG_TERM_MEM_GAP,
+                                             short_term_mem_skip=self.cfg.
+                                             TEST_SHORT_TERM_MEM_SKIP))
                             all_engines[-1].eval()
+
+                        if aug_num > 1:  # if use test-time augmentation
+                            torch.cuda.empty_cache()  # release GPU memory
 
                         engine = all_engines[aug_idx]
 
@@ -307,7 +328,7 @@ class Evaluator(object):
                                 now_timer = torch.cuda.Event(
                                     enable_timing=True)
                                 now_timer.record()
-                                seq_timers[-1].append((now_timer))
+                                seq_timers[-1].append(now_timer)
 
                             engine.match_propogate_one_frame(current_img)
                             pred_logit = engine.decode_current_logits(
@@ -323,27 +344,48 @@ class Evaluator(object):
                                 new_obj_label = current_label
 
                     if frame_idx > 0:
-                        all_preds = torch.cat(all_preds, dim=0)
-                        pred_prob = torch.mean(all_preds, dim=0, keepdim=True)
+                        all_pred_probs = [
+                            torch.mean(pred, dim=0, keepdim=True)
+                            for pred in all_preds
+                        ]
+                        all_pred_labels = [
+                            torch.argmax(prob, dim=1, keepdim=True).float()
+                            for prob in all_pred_probs
+                        ]
+
+                        cat_all_preds = torch.cat(all_preds, dim=0)
+                        pred_prob = torch.mean(cat_all_preds,
+                                               dim=0,
+                                               keepdim=True)
                         pred_label = torch.argmax(pred_prob,
                                                   dim=1,
                                                   keepdim=True).float()
 
                         if new_obj_label is not None:
                             keep = (new_obj_label == 0).float()
+                            all_pred_labels = [label * \
+                                keep + new_obj_label * (1 - keep) for label in all_pred_labels]
+
                             pred_label = pred_label * \
                                 keep + new_obj_label * (1 - keep)
                             new_obj_nums = [int(pred_label.max().item())]
 
                             if cfg.TEST_FLIP:
+                                all_flip_pred_labels = [
+                                    flip_tensor(label, 3)
+                                    for label in all_pred_labels
+                                ]
                                 flip_pred_label = flip_tensor(pred_label, 3)
 
                             for aug_idx in range(len(samples)):
                                 engine = all_engines[aug_idx]
                                 current_img = samples[aug_idx]['current_img']
 
-                                current_label = flip_pred_label if samples[
-                                    aug_idx]['meta']['flip'] else pred_label
+                                # current_label = flip_pred_label if samples[
+                                #     aug_idx]['meta']['flip'] else pred_label
+                                current_label = all_flip_pred_labels[
+                                    aug_idx] if samples[aug_idx]['meta'][
+                                        'flip'] else all_pred_labels[aug_idx]
                                 current_label = F.interpolate(
                                     current_label,
                                     size=engine.input_size_2d,
@@ -353,16 +395,27 @@ class Evaluator(object):
                                     current_label,
                                     obj_nums=new_obj_nums,
                                     frame_step=frame_idx)
+                                engine.decode_current_logits(
+                                    (ori_height, ori_width))
+                                engine.update_memory(current_label)
                         else:
                             if not cfg.MODEL_USE_PREV_PROB:
                                 if cfg.TEST_FLIP:
+                                    all_flip_pred_labels = [
+                                        flip_tensor(label, 3)
+                                        for label in all_pred_labels
+                                    ]
                                     flip_pred_label = flip_tensor(
                                         pred_label, 3)
 
                                 for aug_idx in range(len(samples)):
                                     engine = all_engines[aug_idx]
-                                    current_label = flip_pred_label if samples[
-                                        aug_idx]['meta']['flip'] else pred_label
+                                    # current_label = flip_pred_label if samples[
+                                    #     aug_idx]['meta']['flip'] else pred_label
+                                    current_label = all_flip_pred_labels[
+                                        aug_idx] if samples[aug_idx]['meta'][
+                                            'flip'] else all_pred_labels[
+                                                aug_idx]
                                     current_label = F.interpolate(
                                         current_label,
                                         size=engine.input_size_2d,
@@ -370,12 +423,19 @@ class Evaluator(object):
                                     engine.update_memory(current_label)
                             else:
                                 if cfg.TEST_FLIP:
+                                    all_flip_pred_probs = [
+                                        flip_tensor(prob, 3)
+                                        for prob in all_pred_probs
+                                    ]
                                     flip_pred_prob = flip_tensor(pred_prob, 3)
 
                                 for aug_idx in range(len(samples)):
                                     engine = all_engines[aug_idx]
-                                    current_prob = flip_pred_prob if samples[
-                                        aug_idx]['meta']['flip'] else pred_prob
+                                    # current_prob = flip_pred_prob if samples[
+                                    #     aug_idx]['meta']['flip'] else pred_prob
+                                    current_label = all_flip_pred_probs[
+                                        aug_idx] if samples[aug_idx]['meta'][
+                                            'flip'] else all_pred_probs[aug_idx]
                                     current_prob = F.interpolate(
                                         current_prob,
                                         size=engine.input_size_2d,
@@ -395,7 +455,6 @@ class Evaluator(object):
                                 'GPU {} - Frame: {} - Obj Num: {}, Time: {}ms'.
                                 format(self.gpu, imgname[0].split('.')[0],
                                        obj_num, int(one_frametime * 1e3)))
-
                         # Save result
                         seq_pred_masks['dense'].append({
                             'path':

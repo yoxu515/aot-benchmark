@@ -3,7 +3,7 @@ import warnings
 import random
 import numbers
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 from collections.abc import Sequence
 
 import torch
@@ -52,6 +52,43 @@ class RandomHorizontalFlip(object):
 
     def __repr__(self):
         return self.__class__.__name__ + '(p={})'.format(self.p)
+
+
+class RandomVerticalFlip(object):
+    """Vertical flip the given PIL Image randomly with a given probability.
+
+    Args:
+        p (float): probability of the image being flipped. Default value is 0.5
+    """
+    def __init__(self, p=0.5):
+        self.p = p
+
+    def __call__(self, img, mask):
+        """
+        Args:
+            img (PIL Image): Image to be flipped.
+
+        Returns:
+            PIL Image: Randomly flipped image.
+        """
+        if random.random() < self.p:
+            img = TF.vflip(img)
+            mask = TF.vflip(mask)
+        return img, mask
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(p={})'.format(self.p)
+
+
+class GaussianBlur(object):
+    """Gaussian blur augmentation from SimCLR: https://arxiv.org/abs/2002.05709"""
+    def __init__(self, sigma=[.1, 2.]):
+        self.sigma = sigma
+
+    def __call__(self, x):
+        sigma = random.uniform(self.sigma[0], self.sigma[1])
+        x = x.filter(ImageFilter.GaussianBlur(radius=sigma))
+        return x
 
 
 class RandomAffine(object):

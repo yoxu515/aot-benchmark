@@ -154,11 +154,24 @@ class Trainer(object):
         if cfg.TRAIN_RESUME:
             if self.rank == 0:
                 try:
-                    ema_ckpt_dir = os.path.join(
-                        self.ema_dir,
-                        'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
-                    ema_model, removed_dict = load_network(
-                        self.model, ema_ckpt_dir, self.gpu)
+                    try:
+                        ema_ckpt_dir = os.path.join(
+                            self.ema_dir,
+                            'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
+                        ema_model, removed_dict = load_network(
+                            self.model, ema_ckpt_dir, self.gpu)
+                    except Exception as inst:
+                        self.print_log(inst)
+                        self.print_log('Try to use backup EMA checkpoint.')
+                        DIR_RESULT = './backup/{}/{}'.format(
+                            cfg.EXP_NAME, cfg.STAGE_NAME)
+                        DIR_EMA_CKPT = os.path.join(DIR_RESULT, 'ema_ckpt')
+                        ema_ckpt_dir = os.path.join(
+                            DIR_EMA_CKPT,
+                            'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
+                        ema_model, removed_dict = load_network(
+                            self.model, ema_ckpt_dir, self.gpu)
+
                     if len(removed_dict) > 0:
                         self.print_log(
                             'Remove {} from EMA model.'.format(removed_dict))
@@ -185,9 +198,12 @@ class Trainer(object):
                     scaler=self.scaler)
             except Exception as inst:
                 self.print_log(inst)
+                self.print_log('Try to use backup checkpoint.')
+                DIR_RESULT = './backup/{}/{}'.format(cfg.EXP_NAME,
+                                                     cfg.STAGE_NAME)
+                DIR_CKPT = os.path.join(DIR_RESULT, 'ckpt')
                 resume_ckpt = os.path.join(
-                    'saved_models',
-                    'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
+                    DIR_CKPT, 'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
                 self.model, self.optimizer, removed_dict = load_network_and_optimizer(
                     self.model,
                     self.optimizer,
@@ -209,8 +225,21 @@ class Trainer(object):
 
         elif cfg.PRETRAIN:
             if cfg.PRETRAIN_FULL:
-                self.model, removed_dict = load_network(
-                    self.model, cfg.PRETRAIN_MODEL, self.gpu)
+                try:
+                    self.model, removed_dict = load_network(
+                        self.model, cfg.PRETRAIN_MODEL, self.gpu)
+                except Exception as inst:
+                    self.print_log(inst)
+                    self.print_log('Try to use backup EMA checkpoint.')
+                    DIR_RESULT = './backup/{}/{}'.format(
+                        cfg.EXP_NAME, cfg.STAGE_NAME)
+                    DIR_EMA_CKPT = os.path.join(DIR_RESULT, 'ema_ckpt')
+                    PRETRAIN_MODEL = os.path.join(
+                        DIR_EMA_CKPT,
+                        cfg.PRETRAIN_MODEL.split('/')[-1])
+                    self.model, removed_dict = load_network(
+                        self.model, PRETRAIN_MODEL, self.gpu)
+
                 if len(removed_dict) > 0:
                     self.print_log('Remove {} from pretrained model.'.format(
                         removed_dict))
@@ -218,7 +247,7 @@ class Trainer(object):
                     cfg.PRETRAIN_MODEL))
             else:
                 model_encoder, removed_dict = load_network(
-                    self.model_encoder, cfg.MODEL_ENCODER_PRETRAIN, self.gpu)
+                    self.model_encoder, cfg.PRETRAIN_MODEL, self.gpu)
                 if len(removed_dict) > 0:
                     self.print_log('Remove {} from pretrained model.'.format(
                         removed_dict))
@@ -231,15 +260,33 @@ class Trainer(object):
         self.enable_prev_frame = cfg.TRAIN_ENABLE_PREV_FRAME
 
         self.print_log('Process dataset...')
-        composed_transforms = transforms.Compose([
-            tr.RandomScale(cfg.DATA_MIN_SCALE_FACTOR,
-                           cfg.DATA_MAX_SCALE_FACTOR, cfg.DATA_SHORT_EDGE_LEN),
-            tr.BalancedRandomCrop(cfg.DATA_RANDOMCROP,
-                                  max_obj_num=cfg.MODEL_MAX_OBJ_NUM),
-            tr.RandomHorizontalFlip(cfg.DATA_RANDOMFLIP),
-            tr.Resize(cfg.DATA_RANDOMCROP, use_padding=True),
-            tr.ToTensor()
-        ])
+        if cfg.TRAIN_AUG_TYPE == 'v1':
+            composed_transforms = transforms.Compose([
+                tr.RandomScale(cfg.DATA_MIN_SCALE_FACTOR,
+                               cfg.DATA_MAX_SCALE_FACTOR,
+                               cfg.DATA_SHORT_EDGE_LEN),
+                tr.BalancedRandomCrop(cfg.DATA_RANDOMCROP,
+                                      max_obj_num=cfg.MODEL_MAX_OBJ_NUM),
+                tr.RandomHorizontalFlip(cfg.DATA_RANDOMFLIP),
+                tr.Resize(cfg.DATA_RANDOMCROP, use_padding=True),
+                tr.ToTensor()
+            ])
+        elif cfg.TRAIN_AUG_TYPE == 'v2':
+            composed_transforms = transforms.Compose([
+                tr.RandomScale(cfg.DATA_MIN_SCALE_FACTOR,
+                               cfg.DATA_MAX_SCALE_FACTOR,
+                               cfg.DATA_SHORT_EDGE_LEN),
+                tr.BalancedRandomCrop(cfg.DATA_RANDOMCROP,
+                                      max_obj_num=cfg.MODEL_MAX_OBJ_NUM),
+                tr.RandomColorJitter(),
+                tr.RandomGrayScale(),
+                tr.RandomGaussianBlur(),
+                tr.RandomHorizontalFlip(cfg.DATA_RANDOMFLIP),
+                tr.Resize(cfg.DATA_RANDOMCROP, use_padding=True),
+                tr.ToTensor()
+            ])
+        else:
+            assert NotImplementedError
 
         train_datasets = []
         if 'static' in cfg.DATASETS:
@@ -248,7 +295,8 @@ class Trainer(object):
                 cfg.DATA_RANDOMCROP,
                 seq_len=cfg.DATA_SEQ_LEN,
                 merge_prob=cfg.DATA_DYNAMIC_MERGE_PROB,
-                max_obj_n=cfg.MODEL_MAX_OBJ_NUM)
+                max_obj_n=cfg.MODEL_MAX_OBJ_NUM,
+                aug_type=cfg.TRAIN_AUG_TYPE)
             train_datasets.append(pretrain_vos_dataset)
             self.enable_prev_frame = False
 
@@ -410,7 +458,7 @@ class Trainer(object):
 
                 if self.enable_amp:
                     with torch.cuda.amp.autocast(enabled=True):
-
+                        
                         loss, all_pred, all_loss, boards = model(
                             all_frames,
                             all_labels,
@@ -422,13 +470,17 @@ class Trainer(object):
                             enable_prev_frame=self.enable_prev_frame,
                             use_prev_prob=use_prev_prob)
                         loss = torch.mean(loss)
-
+                        
+                    start = time.time()
                     self.scaler.scale(loss).backward()
+                    end = time.time()
+                    print(end-start)
                     self.scaler.unscale_(optimizer)
                     torch.nn.utils.clip_grad_norm_(model.parameters(),
                                                    cfg.TRAIN_CLIP_GRAD_NORM)
                     self.scaler.step(optimizer)
                     self.scaler.update()
+                    
                 else:
                     loss, all_pred, all_loss, boards = model(
                         all_frames,
@@ -511,6 +563,8 @@ class Trainer(object):
                                  step,
                                  cfg.DIR_CKPT,
                                  cfg.TRAIN_MAX_KEEP_CKPT,
+                                 backup_dir='./backup/{}/{}/ckpt'.format(
+                                     cfg.EXP_NAME, cfg.STAGE_NAME),
                                  scaler=self.scaler)
                     try:
                         torch.cuda.empty_cache()
@@ -519,13 +573,15 @@ class Trainer(object):
                         # Copy EMA parameters to model
                         self.ema.copy_to(self.ema_params)
                         # Save EMA model
-                        save_network(self.model,
-                                     optimizer,
-                                     step,
-                                     self.ema_dir,
-                                     cfg.TRAIN_MAX_KEEP_CKPT,
-                                     backup_dir='./saved_ema_models',
-                                     scaler=self.scaler)
+                        save_network(
+                            self.model,
+                            optimizer,
+                            step,
+                            self.ema_dir,
+                            cfg.TRAIN_MAX_KEEP_CKPT,
+                            backup_dir='./backup/{}/{}/ema_ckpt'.format(
+                                cfg.EXP_NAME, cfg.STAGE_NAME),
+                            scaler=self.scaler)
                         # Restore original parameters to resume training later
                         self.ema.restore(self.ema_params)
                     except Exception as inst:
@@ -617,14 +673,12 @@ class Trainer(object):
                 self.tblogger.add_image('Curr/Mask_Pred', show_preds_sf, step)
 
                 for key in boards['image'].keys():
-                    tmp = boards['image'][key]
-                    for seq_step in range(len(tmp)):
-                        self.tblogger.add_image('S{}/'.format(seq_step) + key, tmp[seq_step].detach().cpu().numpy(), step)
+                    tmp = boards['image'][key].cpu().numpy()
+                    self.tblogger.add_image('S{}/' + key, tmp, step)
                 for key in boards['scalar'].keys():
-                    tmp = boards['scalar'][key]
-                    for seq_step in range(len(tmp)):
-                        self.tblogger.add_scalar('S{}/'.format(seq_step) + key, tmp[seq_step].detach().cpu().numpy(), step)
-                        
+                    tmp = boards['scalar'][key].cpu().numpy()
+                    self.tblogger.add_scalar('S{}/' + key, tmp, step)
+
                 self.tblogger.flush()
 
         del (boards)

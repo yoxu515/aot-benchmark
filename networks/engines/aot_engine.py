@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import numpy as np
-from typing import Dict,List
 
 from utils.math import generate_permute_matrix
 from utils.image import one_hot_mask
@@ -104,7 +103,7 @@ class AOTEngine(nn.Module):
 
         all_frame_loss = aux_losses + curr_losses
 
-        boards = {'image': {}, 'scalar': {}} # type:Dict[str,Dict[str,List]]
+        boards = {'image': [], 'scalar': []}
 
         return loss, all_pred_mask, all_frame_loss, boards
 
@@ -245,7 +244,8 @@ class AOTEngine(nn.Module):
             self.long_term_memories = lstt_long_memories
         else:
             self.update_long_term_memory(lstt_long_memories)
-        self.last_mem_step = frame_step
+
+        self.last_mem_step = self.frame_step
 
         self.short_term_memories_list = [lstt_short_memories]
         self.short_term_memories = lstt_short_memories
@@ -289,13 +289,18 @@ class AOTEngine(nn.Module):
         self.short_term_memories = lstt_short_memories
 
     def update_long_term_memory(self, new_long_term_memories):
+        if self.long_term_memories is None:
+            self.long_term_memories = new_long_term_memories
         updated_long_term_memories = []
         for new_long_term_memory, last_long_term_memory in zip(
                 new_long_term_memories, self.long_term_memories):
             updated_e = []
             for new_e, last_e in zip(new_long_term_memory,
                                      last_long_term_memory):
-                updated_e.append(torch.cat([new_e, last_e], dim=0))
+                if new_e is None or last_e is None:
+                    updated_e.append(None)
+                else:
+                    updated_e.append(torch.cat([new_e, last_e], dim=0))
             updated_long_term_memories.append(updated_e)
         self.long_term_memories = updated_long_term_memories
 
@@ -310,10 +315,12 @@ class AOTEngine(nn.Module):
         lstt_curr_memories = self.curr_lstt_output[1]
         lstt_curr_memories_2d = []
         for layer_idx in range(len(lstt_curr_memories)):
-            curr_v = lstt_curr_memories[layer_idx][1]
-            curr_v = self.AOT.LSTT.layers[layer_idx].linear_V(curr_v +
-                                                              curr_id_emb)
-            lstt_curr_memories[layer_idx][1] = curr_v
+            curr_k, curr_v = lstt_curr_memories[layer_idx][
+                0], lstt_curr_memories[layer_idx][1]
+            curr_k, curr_v = self.AOT.LSTT.layers[layer_idx].fuse_key_value_id(
+                curr_k, curr_v, curr_id_emb)
+            lstt_curr_memories[layer_idx][0], lstt_curr_memories[layer_idx][
+                1] = curr_k, curr_v
             lstt_curr_memories_2d.append([
                 seq_to_2d(lstt_curr_memories[layer_idx][0], self.enc_size_2d),
                 seq_to_2d(lstt_curr_memories[layer_idx][1], self.enc_size_2d)
@@ -499,14 +506,21 @@ class AOTInferEngine(nn.Module):
         self.restart_engine()
 
     def restart_engine(self):
+        del (self.aot_engines)
         self.aot_engines = []
         self.obj_nums = None
 
-    def separate_mask(self, mask):
+    def separate_mask(self, mask, obj_nums):
         if mask is None:
             return [None] * len(self.aot_engines)
         if len(self.aot_engines) == 1:
-            return [mask]
+            return [mask], [obj_nums]
+
+        separated_obj_nums = [
+            self.max_aot_obj_num for _ in range(len(self.aot_engines))
+        ]
+        if obj_nums % self.max_aot_obj_num > 0:
+            separated_obj_nums[-1] = obj_nums % self.max_aot_obj_num
 
         if len(mask.size()) == 3 or mask.size()[0] == 1:
             separated_masks = []
@@ -516,7 +530,7 @@ class AOTInferEngine(nn.Module):
                 fg_mask = ((mask >= start_id) & (mask <= end_id)).float()
                 separated_mask = (fg_mask * mask - start_id + 1) * fg_mask
                 separated_masks.append(separated_mask)
-            return separated_masks
+            return separated_masks, separated_obj_nums
         else:
             prob = mask
             separated_probs = []
@@ -526,7 +540,7 @@ class AOTInferEngine(nn.Module):
                 fg_prob = prob[start_id:(end_id + 1)]
                 bg_prob = 1. - torch.sum(fg_prob, dim=1, keepdim=True)
                 separated_probs.append(torch.cat([bg_prob, fg_prob], dim=1))
-            return separated_probs
+            return separated_probs, separated_obj_nums
 
     def min_logit_aggregation(self, all_logits):
         if len(all_logits) == 1:
@@ -568,6 +582,7 @@ class AOTInferEngine(nn.Module):
     def add_reference_frame(self, img, mask, obj_nums, frame_step=-1):
         if isinstance(obj_nums, list):
             obj_nums = obj_nums[0]
+        self.obj_nums = obj_nums
         aot_num = max(np.ceil(obj_nums / self.max_aot_obj_num), 1)
         while (aot_num > len(self.aot_engines)):
             new_engine = AOTEngine(self.AOT, self.gpu_id,
@@ -576,13 +591,14 @@ class AOTInferEngine(nn.Module):
             new_engine.eval()
             self.aot_engines.append(new_engine)
 
-        separated_masks = self.separate_mask(mask)
+        separated_masks, separated_obj_nums = self.separate_mask(
+            mask, obj_nums)
         img_embs = None
-        for aot_engine, separated_mask in zip(self.aot_engines,
-                                              separated_masks):
+        for aot_engine, separated_mask, separated_obj_num in zip(
+                self.aot_engines, separated_masks, separated_obj_nums):
             aot_engine.add_reference_frame(img,
                                            separated_mask,
-                                           obj_nums=[self.max_aot_obj_num],
+                                           obj_nums=[separated_obj_num],
                                            frame_step=frame_step,
                                            img_embs=img_embs)
             if img_embs is None:  # reuse image embeddings
@@ -605,7 +621,7 @@ class AOTInferEngine(nn.Module):
         return pred_id_logits
 
     def update_memory(self, curr_mask):
-        separated_masks = self.separate_mask(curr_mask)
+        separated_masks, _ = self.separate_mask(curr_mask, self.obj_nums)
         for aot_engine, separated_mask in zip(self.aot_engines,
                                               separated_masks):
             aot_engine.update_short_term_memory(separated_mask)

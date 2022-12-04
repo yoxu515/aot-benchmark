@@ -10,6 +10,8 @@ A modular reference PyTorch implementation of Associating Objects with Transform
 
 An extension of AOT, [AOST](https://arxiv.org/abs/2203.11442) (under review), is available now. AOST is a more robust and flexible framework, supporting run-time speed-accuracy trade-offs.
 
+The code and models for an improved version of AOT, [DeAOT](https://arxiv.org/abs/2210.09782) (NeurIPS2022), have been released in this repo.
+
 
 <img src="source/overview.png" width="90%"/>
 

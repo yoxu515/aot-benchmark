@@ -93,3 +93,14 @@ def get_trainable_params(model,
 def freeze_params(module):
     for p in module.parameters():
         p.requires_grad = False
+
+
+def calculate_params(state_dict):
+    memo = set()
+    total_param = 0
+    for key, value in state_dict.items():
+        if value in memo:
+            continue
+        memo.add(value)
+        total_param += value.numel()
+    print('Total Param: {:.2f}M'.format(total_param / 1e6))

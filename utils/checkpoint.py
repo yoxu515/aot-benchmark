@@ -1,5 +1,6 @@
 import torch
 import os
+import shutil
 import numpy as np
 
 
@@ -133,3 +134,30 @@ def save_network(net,
         for step in all_step:
             ckpt_path = os.path.join(save_path, 'save_step_%s.pth' % (step))
             os.system('rm {}'.format(ckpt_path))
+
+
+def cp_ckpt(remote_dir="data_wd/youtube_vos_jobs/result", curr_dir="backup"):
+    exps = os.listdir(curr_dir)
+    for exp in exps:
+        exp_dir = os.path.join(curr_dir, exp)
+        stages = os.listdir(exp_dir)
+        for stage in stages:
+            stage_dir = os.path.join(exp_dir, stage)
+            finals = ["ema_ckpt", "ckpt"]
+            for final in finals:
+                final_dir = os.path.join(stage_dir, final)
+                ckpts = os.listdir(final_dir)
+                for ckpt in ckpts:
+                    if '.pth' not in ckpt:
+                        continue
+                    curr_ckpt_path = os.path.join(final_dir, ckpt)
+                    remote_ckpt_path = os.path.join(remote_dir, exp, stage,
+                                                    final, ckpt)
+                    if os.path.exists(remote_ckpt_path):
+                        os.system('rm {}'.format(remote_ckpt_path))
+                    try:
+                        shutil.copy(curr_ckpt_path, remote_ckpt_path)
+                        print("Copy {} to {}.".format(curr_ckpt_path,
+                                                      remote_ckpt_path))
+                    except OSError as Inst:
+                        return

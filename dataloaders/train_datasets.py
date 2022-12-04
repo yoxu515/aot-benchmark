@@ -91,7 +91,8 @@ class StaticTrain(Dataset):
                  seq_len=5,
                  max_obj_n=10,
                  dynamic_merge=True,
-                 merge_prob=1.0):
+                 merge_prob=1.0,
+                 aug_type='v1'):
         self.root = root
         self.clip_n = seq_len
         self.output_size = output_size
@@ -133,10 +134,22 @@ class StaticTrain(Dataset):
             f'{len(self.img_list)} imgs are used for PreTrain. They are from {dataset_list}.'
         )
 
+        self.aug_type = aug_type
+
         self.pre_random_horizontal_flip = IT.RandomHorizontalFlip(0.5)
 
         self.random_horizontal_flip = IT.RandomHorizontalFlip(0.3)
-        self.color_jitter = TF.ColorJitter(0.1, 0.1, 0.1, 0.03)
+
+        if self.aug_type == 'v1':
+            self.color_jitter = TF.ColorJitter(0.1, 0.1, 0.1, 0.03)
+        elif self.aug_type == 'v2':
+            self.color_jitter = TF.RandomApply(
+                [TF.ColorJitter(0.4, 0.4, 0.2, 0.1)], p=0.8)
+            self.gray_scale = TF.RandomGrayscale(p=0.2)
+            self.blur = TF.RandomApply([IT.GaussianBlur([.1, 2.])], p=0.3)
+        else:
+            assert NotImplementedError
+
         self.random_affine = IT.RandomAffine(degrees=20,
                                              translate=(0.1, 0.1),
                                              scale=(0.9, 1.1),
@@ -169,16 +182,22 @@ class StaticTrain(Dataset):
         masks = []
 
         img_pil, mask_pil = self.pre_random_horizontal_flip(img_pil, mask_pil)
+        # img_pil, mask_pil = self.pre_random_vertical_flip(img_pil, mask_pil)
 
         for i in range(self.clip_n):
             img, mask = img_pil, mask_pil
 
             if i > 0:
                 img, mask = self.random_horizontal_flip(img, mask)
-                img = self.color_jitter(img)
                 img, mask = self.random_affine(img, mask)
 
+            img = self.color_jitter(img)
+
             img, mask = self.random_resize_crop(img, mask)
+
+            if self.aug_type == 'v2':
+                img = self.gray_scale(img)
+                img = self.blur(img)
 
             mask = np.array(mask, np.uint8)
 

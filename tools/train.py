@@ -24,6 +24,7 @@ def main():
     parser.add_argument('--exp_name', type=str, default='')
     parser.add_argument('--stage', type=str, default='pre')
     parser.add_argument('--model', type=str, default='aott')
+    parser.add_argument('--max_id_num', type=int, default='-1')
 
     parser.add_argument('--start_gpu', type=int, default=0)
     parser.add_argument('--gpu_num', type=int, default=-1)
@@ -56,6 +57,9 @@ def main():
 
     if args.pretrained_path != '':
         cfg.PRETRAIN_MODEL = args.pretrained_path
+
+    if args.max_id_num > 0:
+        cfg.MODEL_MAX_OBJ_NUM = args.max_id_num
 
     if args.lr > 0:
         cfg.TRAIN_LR = args.lr

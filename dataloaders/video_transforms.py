@@ -1,7 +1,11 @@
 import random
 import cv2
 import numpy as np
+from PIL import Image
+
 import torch
+import torchvision.transforms as TF
+import dataloaders.image_transforms as IT
 
 cv2.setNumThreads(0)
 
@@ -242,7 +246,7 @@ class RandomScale(object):
         # Fixed range of scales
         sc = np.random.uniform(self.min_scale, self.max_scale)
         # Align short edge
-        if not (self.short_edge is None):
+        if self.short_edge is not None:
             image = sample['prev_img']
             h, w = image.shape[:2]
             if h > w:
@@ -376,16 +380,15 @@ class RandomScaleV2(object):
 
         return h, w
 
-
 class RestrictSize(object):
     """Randomly resize the image and the ground truth to specified scales.
     Args:
         scales (list): the list of scales
     """
-    def __init__(self, min_size=None, max_size=800 * 1.3):
-        self.min_size = min_size
-        self.max_size = max_size
-        assert ((min_size is None)) or ((max_size is None))
+    def __init__(self, max_short_edge=None, max_long_edge=800 * 1.3):
+        self.max_short_edge = max_short_edge
+        self.max_long_edge = max_long_edge
+        assert ((max_short_edge is None)) or ((max_long_edge is None))
 
     def __call__(self, sample):
 
@@ -394,20 +397,20 @@ class RestrictSize(object):
         image = sample['ref_img']
         h, w = image.shape[:2]
         # Align short edge
-        if not (self.min_size is None):
+        if not (self.max_short_edge is None):
             if h > w:
                 short_edge = w
             else:
                 short_edge = h
-            if short_edge < self.min_size:
-                sc = float(self.min_size) / short_edge
+            if short_edge < self.max_short_edge:
+                sc = float(self.max_short_edge) / short_edge
         else:
             if h > w:
                 long_edge = h
             else:
                 long_edge = w
-            if long_edge > self.max_size:
-                sc = float(self.max_size) / long_edge
+            if long_edge > self.max_long_edge:
+                sc = float(self.max_long_edge) / long_edge
 
         if sc is None:
             new_h = h
@@ -462,12 +465,36 @@ class RandomHorizontalFlip(object):
         return sample
 
 
-class RandomGaussianBlur(object):
-    def __init__(self, prob=0.2):
+class RandomVerticalFlip(object):
+    """Vertically flip the given image and ground truth randomly with a probability of 0.5."""
+    def __init__(self, prob=0.3):
         self.p = prob
 
     def __call__(self, sample):
 
+        if random.random() < self.p:
+            for elem in sample.keys():
+                if 'meta' in elem:
+                    continue
+                if elem == 'curr_img' or elem == 'curr_label':
+                    new_tmp = []
+                    for tmp_ in sample[elem]:
+                        tmp_ = cv2.flip(tmp_, flipCode=0)
+                        new_tmp.append(tmp_)
+                    sample[elem] = new_tmp
+                else:
+                    tmp = sample[elem]
+                    tmp = cv2.flip(tmp, flipCode=0)
+                    sample[elem] = tmp
+
+        return sample
+
+
+class RandomGaussianBlur(object):
+    def __init__(self, prob=0.3, sigma=[0.1, 2.]):
+        self.aug = TF.RandomApply([IT.GaussianBlur(sigma)], p=prob)
+
+    def __call__(self, sample):
         for elem in sample.keys():
             if 'meta' in elem or 'label' in elem:
                 continue
@@ -475,21 +502,36 @@ class RandomGaussianBlur(object):
             if elem == 'curr_img':
                 new_tmp = []
                 for tmp_ in sample[elem]:
-                    if random.random() < self.p:
-                        std = random.random() * 1.9 + 0.1  # [0.1, 2]
-                        tmp_ = cv2.GaussianBlur(tmp_, (9, 9),
-                                                sigmaX=std,
-                                                sigmaY=std)
+                    tmp_ = self.apply_augmentation(tmp_)
                     new_tmp.append(tmp_)
                 sample[elem] = new_tmp
             else:
                 tmp = sample[elem]
-                if random.random() < self.p:
-                    std = random.random() * 1.9 + 0.1  # [0.1, 2]
-                    tmp = cv2.GaussianBlur(tmp, (9, 9), sigmaX=std, sigmaY=std)
+                tmp = self.apply_augmentation(tmp)
                 sample[elem] = tmp
-
         return sample
+
+    def apply_augmentation(self, x):
+        x = Image.fromarray(np.uint8(x))
+        x = self.aug(x)
+        x = np.array(x, dtype=np.float32)
+        return x
+
+
+class RandomGrayScale(RandomGaussianBlur):
+    def __init__(self, prob=0.2):
+        self.aug = TF.RandomGrayscale(p=prob)
+
+
+class RandomColorJitter(RandomGaussianBlur):
+    def __init__(self,
+                 prob=0.8,
+                 brightness=0.4,
+                 contrast=0.4,
+                 saturation=0.2,
+                 hue=0.1):
+        self.aug = TF.RandomApply(
+            [TF.ColorJitter(brightness, contrast, saturation, hue)], p=prob)
 
 
 class SubtractMeanImage(object):
@@ -551,49 +593,47 @@ class ToTensor(object):
 
 class MultiRestrictSize(object):
     def __init__(self,
-                 min_size=None,
-                 max_size=800,
+                 max_short_edge=None,
+                 max_long_edge=800,
                  flip=False,
                  multi_scale=[1.3],
                  align_corners=True,
                  max_stride=16):
-        self.min_size = min_size
-        self.max_size = max_size
+        self.max_short_edge = max_short_edge
+        self.max_long_edge = max_long_edge
         self.multi_scale = multi_scale
         self.flip = flip
         self.align_corners = align_corners
         self.max_stride = max_stride
-        assert ((min_size is None)) or ((max_size is None))
 
     def __call__(self, sample):
         samples = []
         image = sample['current_img']
         h, w = image.shape[:2]
         for scale in self.multi_scale:
-            # Fixed range of scales
-            sc = None
-            # Align short edge
-            if not (self.min_size is None):
+            # restrict short edge
+            sc = 1.
+            if self.max_short_edge is not None:
                 if h > w:
                     short_edge = w
                 else:
                     short_edge = h
-                if short_edge > self.min_size:
-                    sc = float(self.min_size) / short_edge
-            else:
-                if h > w:
-                    long_edge = h
-                else:
-                    long_edge = w
-                if long_edge > self.max_size:
-                    sc = float(self.max_size) / long_edge
+                if short_edge > self.max_short_edge:
+                    sc *= float(self.max_short_edge) / short_edge
+            new_h, new_w = sc * h, sc * w
 
-            if sc is None:
-                new_h = h
-                new_w = w
-            else:
-                new_h = sc * h
-                new_w = sc * w
+            # restrict long edge
+            sc = 1.
+            if self.max_long_edge is not None:
+                if new_h > new_w:
+                    long_edge = new_h
+                else:
+                    long_edge = new_w
+                if long_edge > self.max_long_edge:
+                    sc *= float(self.max_long_edge) / long_edge
+
+            new_h, new_w = sc * new_h, sc * new_w
+
             new_h = int(new_h * scale)
             new_w = int(new_w * scale)
 

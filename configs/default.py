@@ -3,14 +3,14 @@ import importlib
 
 
 class DefaultEngineConfig():
-    def __init__(self, exp_name='default', model='AOTT'):
+    def __init__(self, exp_name='default', model='aott'):
         model_cfg = importlib.import_module('configs.models.' +
                                             model).ModelConfig()
         self.__dict__.update(model_cfg.__dict__)  # add model config
 
         self.EXP_NAME = exp_name + '_' + self.MODEL_NAME
 
-        self.STAGE_NAME = 'default'
+        self.STAGE_NAME = 'YTB'
 
         self.DATASETS = ['youtubevos']
         self.DATA_WORKERS = 8
@@ -31,7 +31,8 @@ class DefaultEngineConfig():
 
         self.PRETRAIN = True
         self.PRETRAIN_FULL = False  # if False, load encoder only
-        self.PRETRAIN_MODEL = ''
+        self.PRETRAIN_MODEL = './data_wd/pretrain_model/mobilenet_v2.pth'
+        # self.PRETRAIN_MODEL = './pretrain_models/mobilenet_v2-b0353104.pth'
 
         self.TRAIN_TOTAL_STEPS = 100000
         self.TRAIN_START_STEP = 0
@@ -67,7 +68,7 @@ class DefaultEngineConfig():
         self.TRAIN_HARD_MINING_RATIO = 0.5
         self.TRAIN_EMA_RATIO = 0.1
         self.TRAIN_CLIP_GRAD_NORM = 5.
-        self.TRAIN_SAVE_STEP = 1000
+        self.TRAIN_SAVE_STEP = 5000
         self.TRAIN_MAX_KEEP_CKPT = 8
         self.TRAIN_RESUME = False
         self.TRAIN_RESUME_CKPT = None
@@ -95,8 +96,8 @@ class DefaultEngineConfig():
         self.TEST_CKPT_STEP = None
         self.TEST_FLIP = False
         self.TEST_MULTISCALE = [1]
-        self.TEST_MIN_SIZE = None
-        self.TEST_MAX_SIZE = 800 * 1.3
+        self.TEST_MAX_SHORT_EDGE = None
+        self.TEST_MAX_LONG_EDGE = 800 * 1.3
         self.TEST_WORKERS = 4
 
         # GPU distribution
@@ -106,12 +107,12 @@ class DefaultEngineConfig():
         self.DIST_START_GPU = 0
 
     def init_dir(self):
-        self.DIR_DATA = './datasets'
+        self.DIR_DATA = '../VOS02/datasets'#'./datasets'
         self.DIR_DAVIS = os.path.join(self.DIR_DATA, 'DAVIS')
         self.DIR_YTB = os.path.join(self.DIR_DATA, 'YTB')
         self.DIR_STATIC = os.path.join(self.DIR_DATA, 'Static')
 
-        self.DIR_ROOT = './results'
+        self.DIR_ROOT = './'#'./data_wd/youtube_vos_jobs'
 
         self.DIR_RESULT = os.path.join(self.DIR_ROOT, 'result', self.EXP_NAME,
                                        self.STAGE_NAME)
@@ -119,8 +120,10 @@ class DefaultEngineConfig():
         self.DIR_EMA_CKPT = os.path.join(self.DIR_RESULT, 'ema_ckpt')
         self.DIR_LOG = os.path.join(self.DIR_RESULT, 'log')
         self.DIR_TB_LOG = os.path.join(self.DIR_RESULT, 'log', 'tensorboard')
-        self.DIR_IMG_LOG = os.path.join(self.DIR_RESULT, 'log', 'img')
-        self.DIR_EVALUATION = os.path.join(self.DIR_RESULT, 'eval')
+        # self.DIR_IMG_LOG = os.path.join(self.DIR_RESULT, 'log', 'img')
+        # self.DIR_EVALUATION = os.path.join(self.DIR_RESULT, 'eval')
+        self.DIR_IMG_LOG = './img_logs'
+        self.DIR_EVALUATION = './results'
 
         for path in [
                 self.DIR_RESULT, self.DIR_CKPT, self.DIR_EMA_CKPT,
