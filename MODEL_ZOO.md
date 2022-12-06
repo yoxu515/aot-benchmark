@@ -38,20 +38,26 @@ To use our pre-trained model to infer, a simple way is to set `--model` and `--c
 
 ### YouTube-VOS 2018 val
 `ALL-F`: all frames. The default evaluation setting of YouTube-VOS is 6fps, but 30fps sequences (all the frames) are also supplied by the dataset organizers. We noticed that many VOS methods prefer to evaluate with 30fps videos. Thus, we also supply our results here. Denser video sequences can significantly improve VOS performance when using the memory reading strategy (like AOTL, R50-AOTL, and SwinB-AOTL), but the efficiency will be influenced since more memorized frames are stored for object matching.
-| Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | F Seen |  J Unseen  | F Unseen | Predictions |
-|:---------- |:-----------:|:--------:|:-----:|:--------:|:--------:|:--------:|:--------:|:--------:|:----:|
-| AOTT       | PRE_YTB_DAV | **41.0** |   √   |   80.9   |   80.0   |   84.7   |   75.2   |   83.5   | [gdrive](https://drive.google.com/file/d/1RGMI5-29Z0odq73rt26eCxOUYUd-fvVv/view?usp=sharing) |
-| AOTT       | PRE_YTB_DAV | **41.0** |       |   80.2   |   80.4   |   85.0   |   73.6   |   81.7   | [gdrive](https://drive.google.com/file/d/1u8mvPRT08ENZHsw9Xf_4C6Sv9BoCzENR/view?usp=sharing) |
-| AOTS       | PRE_YTB_DAV |   27.1   |   √   |   83.0   |   82.2   |   87.0   |   77.3   |   85.7   | [gdrive](https://drive.google.com/file/d/1Z0cndyoCw5Na6u-VFRE8CyiIG2RbMIUO/view?usp=sharing) |
-| AOTS       | PRE_YTB_DAV |   27.1   |       |   82.9   |   82.3   |   87.0   |   77.1   |   85.1   | [gdrive](https://drive.google.com/file/d/1a4-rNnxjMuPBq21IKo31WDYZXMPgS7r2/view?usp=sharing) |
-| AOTB       | PRE_YTB_DAV |   20.5   |   √   |   84.1   |   83.6   |   88.5   |   78.0   |   86.5   | [gdrive](https://drive.google.com/file/d/1gFaweB_GTJjHzSD61v_ZsY9K7UEND30O/view?usp=sharing) |
-| AOTB       | PRE_YTB_DAV |   20.5   |       |   84.0   |   83.2   |   88.1   |    78.0    |   86.5   | [gdrive](https://drive.google.com/file/d/1J5nhuQbbjVLYNXViBIgo21ddQy-MiOLG/view?usp=sharing) |
-| AOTL       | PRE_YTB_DAV |   6.5    |   √   |   84.5   |   83.7   |   88.8   |   78.4   |   87.1   | [gdrive](https://drive.google.com/file/d/1Rpm3e215kJOUvb562lJ2kYg2I3hkrxiM/view?usp=sharing) |
-| AOTL       | PRE_YTB_DAV |   16.0   |       |   84.1   |   83.2   |   88.2   |   78.2   |   86.8   | [gdrive](https://drive.google.com/file/d/1kS8KWQ2L3wzxt44ROLTxwZOT7ZpT8Igc/view?usp=sharing) |
-| R50-AOTL   | PRE_YTB_DAV |   6.4    |   √   | **85.5** |   84.5   |   89.5   | **79.6** | **88.2** | [gdrive](https://drive.google.com/file/d/1NbB54ZhYvfJh38KFOgovYYPjWopd-2TE/view?usp=sharing) |
-| R50-AOTL   | PRE_YTB_DAV |   15.1   |       |   84.6   |   83.7   |   88.5   |   78.8   |   87.3   | [gdrive](https://drive.google.com/file/d/1nbJZ1bbmEgyK-bg6HQ8LwCz5gVJ6wzIZ/view?usp=sharing) |
-| SwinB-AOTL | PRE_YTB_DAV |   5.2    |   √   |   85.1   | **85.1** | **90.1** |   78.4   |   86.9   | [gdrive](https://drive.google.com/file/d/1TulhVOhh01rkssNYbOQASeWKu7CQ5Azx/view?usp=sharing) |
-| SwinB-AOTL | PRE_YTB_DAV |   12.1   |       |   84.7   |   84.5   |   89.5   |   78.1   |   86.7   | [gdrive](https://drive.google.com/file/d/1QFowulSY0LHfpsjUV8ZE9rYc55L9DOC7/view?usp=sharing) |
+| Model        |    Stage    |   FPS    | All-F |   Mean   |  J Seen  |  F Seen  | J Unseen | F Unseen |                                         Predictions                                          |
+|:------------ |:-----------:|:--------:|:-----:|:--------:|:--------:|:--------:|:--------:|:--------:|:--------------------------------------------------------------------------------------------:|
+| AOTT         | PRE_YTB_DAV |   41.0   |       |   80.2   |   80.4   |   85.0   |   73.6   |   81.7   | [gdrive](https://drive.google.com/file/d/1u8mvPRT08ENZHsw9Xf_4C6Sv9BoCzENR/view?usp=sharing) |
+| AOTT         | PRE_YTB_DAV |   41.0   |   √   |   80.9   |   80.0   |   84.7   |   75.2   |   83.5   | [gdrive](https://drive.google.com/file/d/1RGMI5-29Z0odq73rt26eCxOUYUd-fvVv/view?usp=sharing) |
+| DeAOTT       | PRE_YTB_DAV | **53.4** |       | **82.0** | **81.6** | **86.3** | **75.8** | **84.2** |    -                                                                                          |
+| AOTS         | PRE_YTB_DAV |   27.1   |       |   82.9   |   82.3   |   87.0   |   77.1   |   85.1   | [gdrive](https://drive.google.com/file/d/1a4-rNnxjMuPBq21IKo31WDYZXMPgS7r2/view?usp=sharing) |
+| AOTS         | PRE_YTB_DAV |   27.1   |   √   |   83.0   |   82.2   |   87.0   |   77.3   |   85.7   | [gdrive](https://drive.google.com/file/d/1Z0cndyoCw5Na6u-VFRE8CyiIG2RbMIUO/view?usp=sharing) |
+| DeAOTS       | PRE_YTB_DAV | **38.7** |       | **84.0** | **83.3** | **88.3** | **77.9** | **86.6** |    -                                                                                          |
+| AOTB         | PRE_YTB_DAV |   20.5   |       |   84.0   |   83.2   |   88.1   |   78.0   |   86.5   | [gdrive](https://drive.google.com/file/d/1J5nhuQbbjVLYNXViBIgo21ddQy-MiOLG/view?usp=sharing) |
+| AOTB         | PRE_YTB_DAV |   20.5   |   √   |   84.1   |   83.6   |   88.5   |   78.0   |   86.5   | [gdrive](https://drive.google.com/file/d/1gFaweB_GTJjHzSD61v_ZsY9K7UEND30O/view?usp=sharing) |
+| DeAOTB       | PRE_YTB_DAV | **30.4** |       | **84.6** | **83.9** | **88.9** | **78.5** | **87.0** |    -                                                                                          |
+| AOTL         | PRE_YTB_DAV |   16.0   |       |   84.1   |   83.2   |   88.2   |   78.2   |   86.8   | [gdrive](https://drive.google.com/file/d/1kS8KWQ2L3wzxt44ROLTxwZOT7ZpT8Igc/view?usp=sharing) |
+| AOTL         | PRE_YTB_DAV |   6.5    |   √   |   84.5   |   83.7   |   88.8   |   78.4   | **87.1** | [gdrive](https://drive.google.com/file/d/1Rpm3e215kJOUvb562lJ2kYg2I3hkrxiM/view?usp=sharing) |
+| DeAOTL       | PRE_YTB_DAV | **24.7** |       | **84.8** | **84.2** | **89.4** | **78.6** |   87.0   |    -                                                                                          |
+| R50-AOTL     | PRE_YTB_DAV |   14.9   |       |   84.6   |   83.7   |   88.5   |   78.8   |   87.3   | [gdrive](https://drive.google.com/file/d/1nbJZ1bbmEgyK-bg6HQ8LwCz5gVJ6wzIZ/view?usp=sharing) |
+| R50-AOTL     | PRE_YTB_DAV |   6.4    |   √   |   85.5   |   84.5   |   89.5   |   79.6   |   88.2   | [gdrive](https://drive.google.com/file/d/1NbB54ZhYvfJh38KFOgovYYPjWopd-2TE/view?usp=sharing) |
+| R50-DeAOTL   | PRE_YTB_DAV | **22.4** |       | **86.0** | **84.9** | **89.9** | **80.4** | **88.7** |    -                                                                                         |
+| SwinB-AOTL   | PRE_YTB_DAV |   9.3    |       |   84.7   |   84.5   |   89.5   |   78.1   |   86.7   | [gdrive](https://drive.google.com/file/d/1QFowulSY0LHfpsjUV8ZE9rYc55L9DOC7/view?usp=sharing) |
+| SwinB-AOTL   | PRE_YTB_DAV |   5.2    |   √   |   85.1   |   85.1   |   90.1   |   78.4   |   86.9   | [gdrive](https://drive.google.com/file/d/1TulhVOhh01rkssNYbOQASeWKu7CQ5Azx/view?usp=sharing) |
+| SwinB-DeAOTL | PRE_YTB_DAV | **11.9** |       | **86.2** | **85.6** | **90.6** | **80.0** | **88.4** |    -                                          -                                               |
 
 ### YouTube-VOS 2019 val
 | Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | F Seen |  J Unseen  | F Unseen | Predictions |
