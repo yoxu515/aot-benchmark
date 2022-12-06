@@ -57,7 +57,7 @@ To use our pre-trained model to infer, a simple way is to set `--model` and `--c
 | R50-DeAOTL   | PRE_YTB_DAV | **22.4** |       | **86.0** | **84.9** | **89.9** | **80.4** | **88.7** |    -                                                                                         |
 | SwinB-AOTL   | PRE_YTB_DAV |   9.3    |       |   84.7   |   84.5   |   89.5   |   78.1   |   86.7   | [gdrive](https://drive.google.com/file/d/1QFowulSY0LHfpsjUV8ZE9rYc55L9DOC7/view?usp=sharing) |
 | SwinB-AOTL   | PRE_YTB_DAV |   5.2    |   √   |   85.1   |   85.1   |   90.1   |   78.4   |   86.9   | [gdrive](https://drive.google.com/file/d/1TulhVOhh01rkssNYbOQASeWKu7CQ5Azx/view?usp=sharing) |
-| SwinB-DeAOTL | PRE_YTB_DAV | **11.9** |       | **86.2** | **85.6** | **90.6** | **80.0** | **88.4** |    -                                          -                                               |
+| SwinB-DeAOTL | PRE_YTB_DAV | **11.9** |       | **86.2** | **85.6** | **90.6** | **80.0** | **88.4** |    -                                                                                  |
 
 ### YouTube-VOS 2019 val
 | Model      |    Stage    |   FPS    | All-F |   Mean   |  J Seen  | F Seen |  J Unseen  | F Unseen | Predictions |
@@ -71,9 +71,9 @@ To use our pre-trained model to infer, a simple way is to set `--model` and `--c
 | AOTL       | PRE_YTB_DAV |   6.5    |   √   |   84.2   |   83.0   |   87.8   |   78.7   |   87.3   | [gdrive](https://drive.google.com/file/d/1o3fwZ0cH71bqHSA3bYNjhP4GGv9Vyuwa/view?usp=sharing) |
 | AOTL       | PRE_YTB_DAV |   16.0   |       |   84.0   |   82.8   |   87.6   |   78.6   |   87.1   | [gdrive](https://drive.google.com/file/d/1qKLlNXxmT31bW0weEHI_zAf4QwU8Lhou/view?usp=sharing) |
 | R50-AOTL   | PRE_YTB_DAV |   6.4    |   √   | **85.3** |   83.9   |   88.8   | **79.9** | **88.5** | [gdrive](https://drive.google.com/file/d/1OGqlkEu0uXa8QVWIVz_M5pmXXiYR2sh3/view?usp=sharing) |
-| R50-AOTL   | PRE_YTB_DAV |   15.1   |       |   84.4   |   83.4   |   88.1   |   78.7   |   87.2   | [gdrive](https://drive.google.com/file/d/1I7ooSp8EYfU6fvkP6QcCMaxeencA68AH/view?usp=sharing) |
+| R50-AOTL   | PRE_YTB_DAV |   14.9   |       |   84.4   |   83.4   |   88.1   |   78.7   |   87.2   | [gdrive](https://drive.google.com/file/d/1I7ooSp8EYfU6fvkP6QcCMaxeencA68AH/view?usp=sharing) |
 | SwinB-AOTL | PRE_YTB_DAV |   5.2    |   √   | **85.3** | **84.6** | **89.5** |   79.3   |   87.7   | [gdrive](https://drive.google.com/file/d/1e3D22s_rJ7Y2X2MHo7x5lcNtwmHFlwYB/view?usp=sharing) |
-| SwinB-AOTL | PRE_YTB_DAV |   12.1   |       |   84.7   |   84.0   |   88.8   |   78.7   |   87.1   | [gdrive](https://drive.google.com/file/d/1fPzCxi5GM7N2sLKkhoTC2yoY_oTQCHp1/view?usp=sharing) |
+| SwinB-AOTL | PRE_YTB_DAV |   9.3   |       |   84.7   |   84.0   |   88.8   |   78.7   |   87.1   | [gdrive](https://drive.google.com/file/d/1fPzCxi5GM7N2sLKkhoTC2yoY_oTQCHp1/view?usp=sharing) |
 
 ### DAVIS-2017 test
 
