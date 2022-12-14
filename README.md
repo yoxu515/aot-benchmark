@@ -128,8 +128,14 @@ Waiting
 ## Citations
 Please consider citing the related paper(s) in your publications if it helps your research.
 ```
+@inproceedings{yang2022deaot,
+  title={Decoupling Features in Hierarchical Propagation for Video Object Segmentation},
+  author={Yang, Zongxin and Yang, Yi},
+  booktitle={Advances in Neural Information Processing Systems (NeurIPS)},
+  year={2022}
+}
 @article{yang2021aost,
-  title={Associating Objects with Scalable Transformers for Video Object Segmentation},
+  title={Scalable Multi-object Identification for Video Object Segmentation},
   author={Yang, Zongxin and Miao, Jiaxu and Wang, Xiaohan and Wei, Yunchao and Yang, Yi},
   journal={arXiv preprint arXiv:2203.11442},
   year={2022}
