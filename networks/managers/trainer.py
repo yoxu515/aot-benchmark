@@ -28,7 +28,7 @@ from networks.engines import build_engine
 class Trainer(object):
     def __init__(self, rank, cfg, enable_amp=True):
         self.gpu = rank + cfg.DIST_START_GPU
-        self.gpu_num = cfg.TRAIN_GPUS
+        self.gpu_num = cfg.TRAIN_GPUS 
         self.rank = rank
         self.cfg = cfg
 
@@ -340,11 +340,11 @@ class Trainer(object):
             exit(0)
 
         self.train_sampler = torch.utils.data.distributed.DistributedSampler(
-            train_dataset)
+            train_dataset) if self.cfg.DIST_ENABLE else None
         self.train_loader = DataLoader(train_dataset,
                                        batch_size=int(cfg.TRAIN_BATCH_SIZE /
                                                       cfg.TRAIN_GPUS),
-                                       shuffle=False,
+                                       shuffle=False if self.cfg.DIST_ENABLE else True,
                                        num_workers=cfg.DATA_WORKERS,
                                        pin_memory=True,
                                        sampler=self.train_sampler,
@@ -389,7 +389,8 @@ class Trainer(object):
         self.print_log('Start training:')
         model.train()
         while step < cfg.TRAIN_TOTAL_STEPS:
-            train_sampler.set_epoch(epoch)
+            if self.cfg.DIST_ENABLE:
+                train_sampler.set_epoch(epoch)
             epoch += 1
             last_time = time.time()
             for frame_idx, sample in enumerate(train_loader):
@@ -505,10 +506,11 @@ class Trainer(object):
                     now_loss = torch.mean(all_loss[idx].detach())
                     now_iou = pytorch_iou(now_pred.unsqueeze(1), now_label,
                                           obj_nums) * 100
-                    dist.all_reduce(now_loss)
-                    dist.all_reduce(now_iou)
-                    now_loss /= self.gpu_num
-                    now_iou /= self.gpu_num
+                    if self.cfg.DIST_ENABLE:
+                        dist.all_reduce(now_loss)
+                        dist.all_reduce(now_iou)
+                        now_loss /= self.gpu_num
+                        now_iou /= self.gpu_num
                     if self.rank == 0:
                         running_losses[idx].update(now_loss.item())
                         running_ious[idx].update(now_iou.item())
