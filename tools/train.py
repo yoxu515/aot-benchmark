@@ -75,9 +75,13 @@ def main():
             random.randint(0, 9))
     else:
         cfg.DIST_URL = args.dist_url
-    # Use torch.multiprocessing.spawn to launch distributed processes
-    mp.spawn(main_worker, nprocs=cfg.TRAIN_GPUS, args=(cfg, args.amp))
-
+        
+    if cfg.TRAIN_GPUS > 1:
+        # Use torch.multiprocessing.spawn to launch distributed processes
+        mp.spawn(main_worker, nprocs=cfg.TRAIN_GPUS, args=(cfg, args.amp))
+    else:
+        cfg.TRAIN_GPUS = 1
+        main_worker(0, cfg, args.amp)
 
 if __name__ == '__main__':
     main()
