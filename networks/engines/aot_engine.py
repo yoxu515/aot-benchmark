@@ -304,7 +304,7 @@ class AOTEngine(nn.Module):
             updated_long_term_memories.append(updated_e)
         self.long_term_memories = updated_long_term_memories
 
-    def update_short_term_memory(self, curr_mask, curr_id_emb=None):
+    def update_short_term_memory(self, curr_mask, curr_id_emb=None, skip_long_term_update=False):
         if curr_id_emb is None:
             if len(curr_mask.size()) == 3 or curr_mask.size()[0] == 1:
                 curr_one_hot_mask = one_hot_mask(curr_mask, self.max_obj_num)
@@ -332,7 +332,9 @@ class AOTEngine(nn.Module):
         self.short_term_memories = self.short_term_memories_list[0]
 
         if self.frame_step - self.last_mem_step >= self.long_term_mem_gap:
-            self.update_long_term_memory(lstt_curr_memories)
+            # skip the update of long-term memory or not
+            if not skip_long_term_update: 
+                self.update_long_term_memory(lstt_curr_memories)
             self.last_mem_step = self.frame_step
 
     def match_propogate_one_frame(self, img=None, img_embs=None):
@@ -620,11 +622,12 @@ class AOTInferEngine(nn.Module):
         pred_id_logits = self.soft_logit_aggregation(all_logits)
         return pred_id_logits
 
-    def update_memory(self, curr_mask):
+    def update_memory(self, curr_mask, skip_long_term_update=False):
         separated_masks, _ = self.separate_mask(curr_mask, self.obj_nums)
         for aot_engine, separated_mask in zip(self.aot_engines,
                                               separated_masks):
-            aot_engine.update_short_term_memory(separated_mask)
+            aot_engine.update_short_term_memory(separated_mask, 
+                                                skip_long_term_update=skip_long_term_update)
 
     def update_size(self):
         self.input_size_2d = self.aot_engines[0].input_size_2d
