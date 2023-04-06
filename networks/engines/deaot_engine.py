@@ -17,7 +17,7 @@ class DeAOTEngine(AOTEngine):
                          short_term_mem_skip)
         self.layer_loss_scaling_ratio = layer_loss_scaling_ratio
 
-    def update_short_term_memory(self, curr_mask, curr_id_emb=None):
+    def update_short_term_memory(self, curr_mask, curr_id_emb=None, skip_long_term_update=False):
 
         if curr_id_emb is None:
             if len(curr_mask.size()) == 3 or curr_mask.size()[0] == 1:
@@ -50,7 +50,9 @@ class DeAOTEngine(AOTEngine):
         self.short_term_memories = self.short_term_memories_list[0]
 
         if self.frame_step - self.last_mem_step >= self.long_term_mem_gap:
-            self.update_long_term_memory(lstt_curr_memories)
+            # skip the update of long-term memory or not
+            if not skip_long_term_update: 
+                self.update_long_term_memory(lstt_curr_memories)
             self.last_mem_step = self.frame_step
 
 
