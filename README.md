@@ -42,7 +42,13 @@ General examples (Messi and Kobe):
    * pytorch >= 1.7.0 and torchvision
    * opencv-python
    * Pillow
-   * Pytorch Correlation (Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension) instead of using `pip`. **The project can also work without this module but will lose some efficiency of the short-term attention**.)
+   * Pytorch Correlation. Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension) instead of using `pip`:
+     ```bash
+     git clone https://github.com/ClementPinard/Pytorch-Correlation-extension.git
+     cd Pytorch-Correlation-extension
+     python setup.py install
+     cd -
+     ```
 
 Optional:
    * scikit-image (if you want to run our **Demo**, please install)
