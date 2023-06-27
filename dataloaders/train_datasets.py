@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as TF
+from dataloaders import tps
 
 import dataloaders.image_transforms as IT
 
@@ -92,7 +93,9 @@ class StaticTrain(Dataset):
                  max_obj_n=10,
                  dynamic_merge=True,
                  merge_prob=1.0,
-                 aug_type='v1'):
+                 strong_aug=False,
+                 tps_prob=0.0,
+                 tps_scale=0.02):
         self.root = root
         self.clip_n = seq_len
         self.output_size = output_size
@@ -134,28 +137,32 @@ class StaticTrain(Dataset):
             f'{len(self.img_list)} imgs are used for PreTrain. They are from {dataset_list}.'
         )
 
-        self.aug_type = aug_type
-
         self.pre_random_horizontal_flip = IT.RandomHorizontalFlip(0.5)
 
         self.random_horizontal_flip = IT.RandomHorizontalFlip(0.3)
-
-        if self.aug_type == 'v1':
+        if not strong_aug:
             self.color_jitter = TF.ColorJitter(0.1, 0.1, 0.1, 0.03)
-        elif self.aug_type == 'v2':
+            self.gray_scale = None
+            self.blur = None
+        else:
             self.color_jitter = TF.RandomApply(
                 [TF.ColorJitter(0.4, 0.4, 0.2, 0.1)], p=0.8)
             self.gray_scale = TF.RandomGrayscale(p=0.2)
             self.blur = TF.RandomApply([IT.GaussianBlur([.1, 2.])], p=0.3)
-        else:
-            assert NotImplementedError
-
+            self.random_affine = IT.RandomAffine(degrees=20,
+                                                translate=(0.1, 0.1),
+                                                scale=(0.9, 1.1),
+                                                shear=10,
+                                                resample=Image.BICUBIC,
+                                                fillcolor=(124, 116, 104))
         self.random_affine = IT.RandomAffine(degrees=20,
                                              translate=(0.1, 0.1),
                                              scale=(0.9, 1.1),
                                              shear=10,
                                              resample=Image.BICUBIC,
                                              fillcolor=(124, 116, 104))
+        self.tps_prob = tps_prob
+        self.tps_scale = tps_scale
         base_ratio = float(output_size[1]) / output_size[0]
         self.random_resize_crop = IT.RandomResizedCrop(
             output_size, (0.8, 1),
@@ -182,22 +189,24 @@ class StaticTrain(Dataset):
         masks = []
 
         img_pil, mask_pil = self.pre_random_horizontal_flip(img_pil, mask_pil)
-        # img_pil, mask_pil = self.pre_random_vertical_flip(img_pil, mask_pil)
 
         for i in range(self.clip_n):
             img, mask = img_pil, mask_pil
 
             if i > 0:
                 img, mask = self.random_horizontal_flip(img, mask)
+                img = self.color_jitter(img)
                 img, mask = self.random_affine(img, mask)
-
-            img = self.color_jitter(img)
 
             img, mask = self.random_resize_crop(img, mask)
 
-            if self.aug_type == 'v2':
+            if self.gray_scale is not None:
                 img = self.gray_scale(img)
+            if self.blur is not None:
                 img = self.blur(img)
+            if np.random.rand() < self.tps_prob:
+                img,mask = tps.random_tps_warp(img, mask, scale=self.tps_scale)
+                # print('tps!')
 
             mask = np.array(mask, np.uint8)
 
@@ -263,7 +272,10 @@ class VOSTrain(Dataset):
                  dynamic_merge=True,
                  enable_prev_frame=False,
                  merge_prob=0.3,
-                 max_obj_n=10):
+                 max_obj_n=10,
+                 balance_sample=False,
+                 balance_ratio=0.0,
+                 freq_dict=None):
         self.image_root = image_root
         self.label_root = label_root
         self.rand_gap = rand_gap
@@ -278,6 +290,21 @@ class VOSTrain(Dataset):
         self.rgb = rgb
         self.imglistdic = imglistdic
         self.seqs = list(self.imglistdic.keys())
+        self.balance_sample = balance_sample
+        self.balance_ratio = balance_ratio
+        self.freq_dict = freq_dict
+        if self.balance_sample:
+            p = self.balance_ratio
+            freq_dict = {}
+            if self.freq_dict is None:
+                raise ValueError
+            for k in self.freq_dict.keys():
+                freq_dict[k] = self.freq_dict[k]**p
+                
+            self.probs = []
+            for seq in self.seqs:
+                self.probs.append(freq_dict[seq])
+        
         print('Video Num: {} X {}'.format(len(self.seqs), self.repeat_time))
 
     def __len__(self):
@@ -505,15 +532,28 @@ class VOSTrain(Dataset):
 
         return sample
 
-    def __getitem__(self, idx):
+    def __getitem__(self, old_idx):
+        if self.balance_sample:
+            idx = self.get_balance_idx()
+            # print(old_idx,'after balanced',idx)
+        else:
+            idx = old_idx
         sample1 = self.sample_sequence(idx)
-
+        
         if self.dynamic_merge and (sample1['meta']['obj_num'] == 0
                                    or random.random() < self.merge_prob):
-            rand_idx = np.random.randint(len(self.seqs))
-            while (rand_idx == (idx % len(self.seqs))):
+                                   
+            if self.balance_sample:
+                rand_idx = self.get_balance_idx()
+            else:
                 rand_idx = np.random.randint(len(self.seqs))
-
+            while (rand_idx == (idx % len(self.seqs))):
+                if self.balance_sample:
+                    # add an random number to prevent loop mapping from idx to rand_idx
+                    rand_idx = self.get_balance_idx()
+                else:
+                    rand_idx = np.random.randint(len(self.seqs))
+            # print(idx, 'random merge with', rand_idx)
             sample2 = self.sample_sequence(rand_idx)
 
             sample = self.merge_sample(sample1, sample2)
@@ -524,6 +564,14 @@ class VOSTrain(Dataset):
 
     def merge_sample(self, sample1, sample2, min_obj_pixels=100):
         return _merge_sample(sample1, sample2, min_obj_pixels, self.max_obj_n)
+    
+    def get_balance_idx(self):
+        '''
+        generate index of a seq acd to freq_dict**p
+        p is balance ratio
+        '''
+        idx = random.choices(range(len(self.seqs)),self.probs)
+        return idx[0]
 
 
 class DAVIS2017_Train(VOSTrain):
@@ -594,7 +642,11 @@ class YOUTUBEVOS_Train(VOSTrain):
                  dynamic_merge=True,
                  enable_prev_frame=False,
                  max_obj_n=10,
-                 merge_prob=0.3):
+                 merge_prob=0.3,
+                 balance_sample=False,
+                 balance_ratio=0.0,
+                 use_vosp=False,
+                 repeat=1):
         root = os.path.join(root, str(year), 'train')
         image_root = os.path.join(root, 'JPEGImages')
         label_root = os.path.join(root, 'Annotations')
@@ -622,20 +674,32 @@ class YOUTUBEVOS_Train(VOSTrain):
                 print("Short video: " + seq_name)
                 continue
             imglistdic[seq_name] = (images, labels)
+        
+        if balance_sample:
+            import dataloaders.freq as freq
+            if use_vosp:
+                freq_dict = freq.VOSP_freq
+            else:
+                freq_dict = freq.VOS19_freq
+        else:
+            freq_dict = None
 
         super(YOUTUBEVOS_Train, self).__init__(image_root,
                                                label_root,
                                                imglistdic,
                                                transform,
                                                rgb,
-                                               1,
+                                               repeat,
                                                rand_gap,
                                                seq_len,
                                                rand_reverse,
                                                dynamic_merge,
                                                enable_prev_frame,
                                                merge_prob=merge_prob,
-                                               max_obj_n=max_obj_n)
+                                               max_obj_n=max_obj_n,
+                                               balance_sample=balance_sample,
+                                               balance_ratio=balance_ratio,
+                                               freq_dict=freq_dict)
 
     def _check_preprocess(self):
         if not os.path.isfile(self.seq_list_file):
@@ -645,7 +709,257 @@ class YOUTUBEVOS_Train(VOSTrain):
             self.ann_f = json.load(open(self.seq_list_file, 'r'))['videos']
             return True
 
+class BL30K_Train(VOSTrain):
+    def __init__(self,
+                 root='./datasets/BL30K',
+                 transform=None,
+                 rgb=True,
+                 rand_gap=12,
+                 seq_len=3,
+                 rand_reverse=True,
+                 dynamic_merge=True,
+                 enable_prev_frame=False,
+                 max_obj_n=10,
+                 merge_prob=0.3):
+        image_root = os.path.join(root, 'JPEGImages')
+        label_root = os.path.join(root, 'Annotations')
+        seq_names = list(np.sort(os.listdir(os.path.join(image_root))))
+        print('%d seqs in BL30K'%len(seq_names))
 
+        imglistdic = {}
+        for seq_name in seq_names:
+            images = list(
+                np.sort(os.listdir(os.path.join(image_root, seq_name))))
+            labels = list(
+                np.sort(os.listdir(os.path.join(label_root, seq_name))))
+            if len(images) != len(labels):
+                print(seq_name,'bad data!')
+            else:
+                imglistdic[seq_name] = (images, labels)
+
+        super().__init__(image_root,
+                            label_root,
+                            imglistdic,
+                            transform,
+                            rgb,
+                            1,
+                            rand_gap,
+                            seq_len,
+                            rand_reverse,
+                            dynamic_merge,
+                            enable_prev_frame,
+                            merge_prob=merge_prob,
+                            max_obj_n=max_obj_n)
+
+class VIPOSeg_Train(VOSTrain):
+    def __init__(self,
+                 root='./datasets/VIPOSeg',
+                 transform=None,
+                 rgb=True,
+                 rand_gap=3,
+                 seq_len=3,
+                 rand_reverse=True,
+                 dynamic_merge=True,
+                 merge_prob=0.3,
+                 enable_prev_frame=False,
+                 train_pano=False,
+                 max_stuff_num=6,
+                 max_thing_num=10):
+        # image_root = os.path.join(root, 'images')
+        image_root = os.path.join(root, 'train/JPEGImages')
+        label_root = os.path.join(root, 'train/Annotations')
+        obj_class_file = os.path.join(root,'train/obj_class.json')
+        # seq_names = list(np.sort(os.listdir(os.path.join(image_root))))
+        seq_names = [x.split('/')[-1] for x in sorted(glob(image_root+'/*'))]
+        self.train_pano = train_pano
+        print('%d seqs in VIPSeg'%len(seq_names))
+        import json
+        with open(obj_class_file,'r') as f:
+            self.obj_class_dict = json.load(f)
+        print('VIPOSeg obj class file loaded')
+        
+        imglistdic = {}
+        for seq_name in seq_names:
+            images = list(
+                np.sort(os.listdir(os.path.join(image_root, seq_name))))
+            labels = list(
+                np.sort(os.listdir(os.path.join(label_root, seq_name))))
+            if len(images) != len(labels):
+                print(seq_name,'bad data!')
+            else:
+                imglistdic[seq_name] = (images, labels)
+        
+        self.max_stuff_num = max_stuff_num
+        self.max_thing_num = max_thing_num
+        self.thing_class = [2, 4, 8, 10, 41, 43, 44, 46, 47, 48, 49, 50, 51, 52, 54, 55, 56, 60, 61, 62, 63,
+         64, 65, 72, 74, 76, 77, 78, 79, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 95, 96, 97, 99, 100,
+          101, 102, 106, 107, 108, 109, 114, 115, 116, 117, 118, 122, 123]
+        self.stuff_class = [0, 1, 3, 5, 6, 7, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+         26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42, 45, 53, 57, 58, 59, 66, 67, 68, 69,
+          70, 71, 73, 75, 80, 81, 93, 94, 98, 103, 104, 105, 110, 111, 112, 113, 119, 120, 121]
+
+        super().__init__(image_root,
+                            label_root,
+                            imglistdic,
+                            transform,
+                            rgb,
+                            1,
+                            rand_gap,
+                            seq_len,
+                            rand_reverse,
+                            dynamic_merge,
+                            enable_prev_frame,
+                            merge_prob=merge_prob,
+                            max_obj_n=max_stuff_num + max_thing_num)
+    
+    def sample_sequence(self, idx):
+        if not self.train_pano:
+            return super().sample_sequence(idx)
+        
+        idx = idx % len(self.seqs)
+        seqname = self.seqs[idx]
+        seq_class_dict = self.obj_class_dict[seqname]
+        imagelist, lablist = self.imglistdic[seqname]
+        frame_num = len(imagelist)
+        if self.rand_reverse:
+            imagelist, lablist = self.reverse_seq(imagelist, lablist)
+
+        is_consistent = False
+        max_try = 5
+        try_step = 0
+        while (is_consistent is False and try_step < max_try):
+            try_step += 1
+
+            # generate random gaps
+            curr_gaps, total_gap = self.get_curr_gaps(self.seq_len - 1)
+
+            if self.enable_prev_frame:  # prev frame is randomly sampled
+                # get prev frame
+                prev_index = self.get_prev_index(lablist, total_gap)
+                prev_image, prev_label = self.get_image_label(
+                    seqname, imagelist, lablist, prev_index)
+                prev_objs = list(np.unique(prev_label))
+
+                # get curr frames
+                curr_indices = self.get_curr_indices(lablist, prev_index,
+                                                     curr_gaps)
+                curr_images, curr_labels, curr_objs = [], [], []
+                for curr_index in curr_indices:
+                    curr_image, curr_label = self.get_image_label(
+                        seqname, imagelist, lablist, curr_index)
+                    c_objs = list(np.unique(curr_label))
+                    curr_images.append(curr_image)
+                    curr_labels.append(curr_label)
+                    curr_objs.extend(c_objs)
+
+                objs = list(np.unique(prev_objs + curr_objs))
+
+                start_index = prev_index
+                end_index = max(curr_indices)
+                # get ref frame
+                _try_step = 0
+                ref_index = self.get_ref_index_v2(seqname, lablist)
+                while (ref_index > start_index and ref_index <= end_index
+                       and _try_step < max_try):
+                    _try_step += 1
+                    ref_index = self.get_ref_index_v2(seqname, lablist)
+                ref_image, ref_label = self.get_image_label(
+                    seqname, imagelist, lablist, ref_index)
+                ref_objs = list(np.unique(ref_label))
+            else:  # prev frame is next to ref frame
+                # get ref frame
+                ref_index = self.get_ref_index_v2(seqname, lablist)
+
+                ref_image, ref_label = self.get_image_label(
+                    seqname, imagelist, lablist, ref_index)
+                ref_objs = list(np.unique(ref_label))
+
+                # get curr frames
+                curr_indices = self.get_curr_indices(lablist, ref_index,
+                                                     curr_gaps)
+                curr_images, curr_labels, curr_objs = [], [], []
+                for curr_index in curr_indices:
+                    curr_image, curr_label = self.get_image_label(
+                        seqname, imagelist, lablist, curr_index)
+                    c_objs = list(np.unique(curr_label))
+                    curr_images.append(curr_image)
+                    curr_labels.append(curr_label)
+                    curr_objs.extend(c_objs)
+
+                objs = list(np.unique(curr_objs))
+                prev_image, prev_label = curr_images[0], curr_labels[0]
+                curr_images, curr_labels = curr_images[1:], curr_labels[1:]
+
+            is_consistent = True
+            for obj in objs:
+                if obj == 0:
+                    continue
+                if obj not in ref_objs:
+                    is_consistent = False
+                    break
+
+        # get meta info
+        obj_num = list(np.sort(ref_objs))[-1]
+        
+        # convert obj to thing and stuff
+        obj_mapping_dict = {}
+        thing_objs = []
+        stuff_objs = []
+        for obj in list(np.sort(ref_objs)):
+            if obj==0:
+                obj_mapping_dict[0] = [0,len(stuff_objs)]
+                stuff_objs.append(obj)
+            elif int(seq_class_dict[str(obj)]) in self.stuff_class:
+                obj_mapping_dict[obj] = [0,len(stuff_objs)]
+                stuff_objs.append(obj)
+            elif int(seq_class_dict[str(obj)]) in self.thing_class:
+                obj_mapping_dict[obj] = [1,len(thing_objs)]
+                thing_objs.append(obj)
+            else:
+                raise ValueError("bad obj idx: {} in seq{}".format(obj,seqname))
+        
+        # restrict obj number in balanced random crop, not here
+        # # check obj number
+        # removed_objs = []
+        # if len(stuff_objs) > self.max_stuff_num:
+        #     random.shuffle(stuff_objs)
+        #     sel_stuff_objs = sorted(stuff_objs[:self.max_stuff_num])
+        #     removed_objs.extend(stuff_objs[self.max_stuff_num:])
+        # if len(thing_objs) > self.max_thing_num:
+        #     random.shuffle(thing_objs)
+        #     sel_thing_objs = sorted(thing_objs[:self.max_thing_num])
+        #     removed_objs.extend(thing_objs[self.max_thing_num:])
+        
+        # # remove extra objects in label
+        # for obj in removed_objs:
+        #     ref_label[ref_label==obj] = 0
+        #     prev_label[prev_label==obj] = 0
+        #     for i in range(len(curr_labels)):
+        #         curr_labels[i][curr_labels[i]==obj] = 0
+        
+        obj_num = [len(stuff_objs),len(thing_objs)]
+
+
+        sample = {
+            'ref_img': ref_image,
+            'prev_img': prev_image,
+            'curr_img': curr_images,
+            'ref_label': ref_label,
+            'prev_label': prev_label,
+            'curr_label': curr_labels
+        }
+        sample['meta'] = {
+            'seq_name': seqname,
+            'frame_num': frame_num,
+            'obj_num': obj_num,
+            'obj_mapping':obj_mapping_dict
+        }
+
+        if self.transform is not None:
+            sample = self.transform(sample)
+
+        return sample
+        
 class TEST(Dataset):
     def __init__(
         self,

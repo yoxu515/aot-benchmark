@@ -114,12 +114,13 @@ def demo(cfg):
                           phase='eval',
                           aot_model=model,
                           gpu_id=gpu_id,
-                          long_term_mem_gap=cfg.TEST_LONG_TERM_MEM_GAP)
+                          long_term_mem_gap=cfg.TEST_LONG_TERM_MEM_GAP,
+                          short_term_mem_skip=cfg.TEST_SHORT_TERM_MEM_GAP)
 
     # Prepare datasets for each sequence
     transform = transforms.Compose([
         tr.MultiRestrictSize(cfg.TEST_MIN_SIZE, cfg.TEST_MAX_SIZE,
-                             cfg.TEST_FLIP, cfg.TEST_MULTISCALE,
+                             cfg.TEST_FLIP, cfg.TEST_INPLACE_FLIP, cfg.TEST_MULTISCALE,
                              cfg.MODEL_ALIGN_CORNERS),
         tr.MultiToTensor()
     ])
@@ -245,16 +246,16 @@ def main():
     parser = argparse.ArgumentParser(description="AOT Demo")
     parser.add_argument('--exp_name', type=str, default='default')
 
-    parser.add_argument('--stage', type=str, default='pre_ytb_dav')
-    parser.add_argument('--model', type=str, default='r50_aotl')
+    parser.add_argument('--stage', type=str, default='ms42')
+    parser.add_argument('--model', type=str, default='R50_AOTv3')
 
     parser.add_argument('--gpu_id', type=int, default=0)
 
-    parser.add_argument('--data_path', type=str, default='./datasets/Demo')
-    parser.add_argument('--output_path', type=str, default='./demo_output')
+    parser.add_argument('--data_path', type=str, default='/home/yoxu/vot_2022/aot/datasets/vot_demo')
+    parser.add_argument('--output_path', type=str, default='./demo_output/test10')
     parser.add_argument('--ckpt_path',
                         type=str,
-                        default='./pretrain_models/R50_AOTL_PRE_YTB_DAV.pth')
+                        default='./pretrain_models/save_step_100000.pth')
 
     parser.add_argument('--max_resolution', type=float, default=480 * 1.3)
 

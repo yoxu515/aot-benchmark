@@ -9,10 +9,10 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from dataloaders.eval_datasets import YOUTUBEVOS_Test, YOUTUBEVOS_DenseTest, DAVIS_Test, EVAL_TEST
+from dataloaders.eval_datasets import YOUTUBEVOS_Test, YOUTUBEVOS_DenseTest, DAVIS_Test, EVAL_TEST, VIPOSeg_Test
 import dataloaders.video_transforms as tr
 
-from utils.image import flip_tensor, save_mask
+from utils.image import flip_tensor, save_mask, save_prob, save_logit, label2box, check_box, box_filter
 from utils.checkpoint import load_network
 from utils.eval import zip_folder
 
@@ -68,27 +68,19 @@ class Evaluator(object):
                 cfg.DIR_CKPT = os.path.join(cfg.DIR_RESULT, 'ema_ckpt')
             cfg.TEST_CKPT_PATH = os.path.join(cfg.DIR_CKPT,
                                               'save_step_%s.pth' % ckpt)
-            try:
-                self.model, removed_dict = load_network(
-                    self.model, cfg.TEST_CKPT_PATH, self.gpu)
-            except Exception as inst:
-                self.print_log(inst)
-                self.print_log('Try to use backup checkpoint.')
-                DIR_RESULT = './backup/{}/{}'.format(cfg.EXP_NAME,
-                                                     cfg.STAGE_NAME)
-                DIR_CKPT = os.path.join(DIR_RESULT, 'ema_ckpt')
-                TEST_CKPT_PATH = os.path.join(DIR_CKPT,
-                                              'save_step_%s.pth' % ckpt)
-                self.model, removed_dict = load_network(
-                    self.model, TEST_CKPT_PATH, self.gpu)
-
+            self.model, removed_dict = load_network(self.model,
+                                                    cfg.TEST_CKPT_PATH,
+                                                    self.gpu)
             if len(removed_dict) > 0:
                 self.print_log(
                     'Remove {} from pretrained model.'.format(removed_dict))
             self.print_log('Load latest checkpoint from {}'.format(
                 cfg.TEST_CKPT_PATH))
         else:
-            self.ckpt = 'unknown'
+            if cfg.TEST_CKPT_STEP is not None:
+                self.ckpt = str(cfg.TEST_CKPT_STEP)
+            else:
+                self.ckpt = 'unknown'
             self.model, removed_dict = load_network(self.model,
                                                     cfg.TEST_CKPT_PATH,
                                                     self.gpu)
@@ -103,7 +95,7 @@ class Evaluator(object):
         self.print_log('Process dataset...')
         eval_transforms = transforms.Compose([
             tr.MultiRestrictSize(cfg.TEST_MAX_SHORT_EDGE,
-                                 cfg.TEST_MAX_LONG_EDGE, cfg.TEST_FLIP,
+                                 cfg.TEST_MAX_LONG_EDGE, cfg.TEST_FLIP, cfg.TEST_INPLACE_FLIP,
                                  cfg.TEST_MULTISCALE, cfg.MODEL_ALIGN_CORNERS),
             tr.MultiToTensor()
         ])
@@ -119,9 +111,20 @@ class Evaluator(object):
 
         if cfg.TEST_EMA:
             eval_name += '_ema'
-        if cfg.TEST_FLIP:
+        eval_name += '_gap' + str(cfg.TEST_LONG_TERM_MEM_GAP) + '-' + str(cfg.TEST_SHORT_TERM_MEM_GAP)
+        if cfg.TEST_LONG_TERM_MEM_MAX < 999:
+            eval_name += '_max' + str(cfg.TEST_LONG_TERM_MEM_MAX)
+        if cfg.TEST_TOP_K != -1:
+            if cfg.TEST_TOP_K>1:
+                topk_s = str(int(cfg.TEST_TOP_K))
+            else:
+                topk_s = str(cfg.TEST_TOP_K).replace('.','-')
+            eval_name += '_topk' + topk_s
+        if cfg.TEST_INPLACE_FLIP:
+            eval_name += '_inflip'
+        elif cfg.TEST_FLIP:
             eval_name += '_flip'
-        if len(cfg.TEST_MULTISCALE) > 1:
+        if cfg.TEST_MULTISCALE != [1.]:
             eval_name += '_ms_' + str(cfg.TEST_MULTISCALE).replace(
                 '.', 'dot').replace('[', '').replace(']', '').replace(
                     ', ', '_')
@@ -131,6 +134,16 @@ class Evaluator(object):
             self.result_root = os.path.join(cfg.DIR_EVALUATION,
                                             cfg.TEST_DATASET, eval_name,
                                             'Annotations')
+            if cfg.TEST_SAVE_PROB:
+                self.result_root_prob = os.path.join(cfg.DIR_EVALUATION,
+                                                       cfg.TEST_DATASET,
+                                                       eval_name + '_prob',
+                                                       'Annotations')
+            if cfg.TEST_SAVE_LOGIT:
+                self.result_root_logit = os.path.join(cfg.DIR_EVALUATION,
+                                                       cfg.TEST_DATASET,
+                                                       eval_name + '_logit',
+                                                       'Annotations')
             if '_all_frames' in cfg.TEST_DATASET_SPLIT:
                 split = cfg.TEST_DATASET_SPLIT.split('_')[0]
                 youtubevos_test = YOUTUBEVOS_DenseTest
@@ -157,6 +170,11 @@ class Evaluator(object):
             self.result_root = os.path.join(cfg.DIR_EVALUATION,
                                             cfg.TEST_DATASET, eval_name,
                                             'Annotations', resolution)
+            if cfg.TEST_SAVE_PROB:
+                self.result_root_prob = os.path.join(cfg.DIR_EVALUATION,
+                                                       cfg.TEST_DATASET,
+                                                       eval_name + '_prob',
+                                                       'Annotations')
             self.dataset = DAVIS_Test(
                 split=[cfg.TEST_DATASET_SPLIT],
                 root=cfg.DIR_DAVIS,
@@ -170,6 +188,11 @@ class Evaluator(object):
             self.result_root = os.path.join(cfg.DIR_EVALUATION,
                                             cfg.TEST_DATASET, eval_name,
                                             'Annotations', resolution)
+            if cfg.TEST_SAVE_PROB:
+                self.result_root_prob = os.path.join(cfg.DIR_EVALUATION,
+                                                       cfg.TEST_DATASET,
+                                                       eval_name + '_prob',
+                                                       'Annotations')
             self.dataset = DAVIS_Test(
                 split=[cfg.TEST_DATASET_SPLIT],
                 root=cfg.DIR_DAVIS,
@@ -183,6 +206,21 @@ class Evaluator(object):
                                             cfg.TEST_DATASET, eval_name,
                                             'Annotations')
             self.dataset = EVAL_TEST(eval_transforms, self.result_root)
+        elif cfg.TEST_DATASET == 'viposeg':
+            self.result_root = os.path.join(cfg.DIR_EVALUATION,
+                                            cfg.TEST_DATASET, eval_name,
+                                            'Annotations')
+            if cfg.TEST_SAVE_PROB:
+                self.result_root_prob = os.path.join(cfg.DIR_EVALUATION,
+                                                       cfg.TEST_DATASET,
+                                                       eval_name + '_prob',
+                                                       'Annotations')
+            split = cfg.TEST_DATASET_SPLIT
+            self.dataset = VIPOSeg_Test(root=cfg.DIR_VIP,
+                                           split=split,
+                                           transform=eval_transforms,
+                                           result_root=self.result_root,
+                                           test_pano=cfg.TEST_PANO)
         else:
             self.print_log('Unknown dataset!')
             exit()
@@ -213,6 +251,9 @@ class Evaluator(object):
         total_sfps = 0
         total_video_num = len(self.dataset)
         start_eval_time = time.time()
+
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
 
         if self.seq_queue is not None:
             if self.rank == 0:
@@ -257,16 +298,26 @@ class Evaluator(object):
                                                   seq_name)
                     if not os.path.exists(seq_dir_sparse):
                         os.makedirs(seq_dir_sparse)
+                if cfg.TEST_SAVE_PROB:
+                    seq_dir_prob = os.path.join(self.result_root_prob,
+                                                  seq_name)
+                    if not os.path.exists(seq_dir_prob):
+                        os.makedirs(seq_dir_prob)
+                if cfg.TEST_SAVE_LOGIT:
+                    seq_dir_logit = os.path.join(self.result_root_logit,
+                                                  seq_name)
+                    if not os.path.exists(seq_dir_logit):
+                        os.makedirs(seq_dir_logit)
 
                 seq_total_time = 0
                 seq_total_frame = 0
-                seq_pred_masks = {'dense': [], 'sparse': []}
-                seq_timers = []
+                box_dict = {}
 
                 for frame_idx, samples in enumerate(seq_dataloader):
 
                     all_preds = []
                     new_obj_label = None
+                    one_frametime = 0
                     aug_num = len(samples)
 
                     for aug_idx in range(aug_num):
@@ -279,7 +330,7 @@ class Evaluator(object):
                                              long_term_mem_gap=self.cfg.
                                              TEST_LONG_TERM_MEM_GAP,
                                              short_term_mem_skip=self.cfg.
-                                             TEST_SHORT_TERM_MEM_SKIP))
+                                             TEST_SHORT_TERM_MEM_GAP))
                             all_engines[-1].eval()
 
                         if aug_num > 1:  # if use test-time augmentation
@@ -288,16 +339,20 @@ class Evaluator(object):
                         engine = all_engines[aug_idx]
 
                         sample = samples[aug_idx]
+                        # if sample['meta']['seq_name'] == ['0e4068b53f']:
+                        #     print('get it!')
 
                         is_flipped = sample['meta']['flip']
 
-                        obj_nums = sample['meta']['obj_num']
+                        
                         imgname = sample['meta']['current_name']
                         ori_height = sample['meta']['height']
                         ori_width = sample['meta']['width']
                         obj_idx = sample['meta']['obj_idx']
 
-                        obj_nums = [int(obj_num) for obj_num in obj_nums]
+                        if not self.cfg.TEST_PANO:
+                            obj_nums = sample['meta']['obj_num']
+                            obj_nums = [int(obj_num) for obj_num in obj_nums]
                         obj_idx = [int(_obj_idx) for _obj_idx in obj_idx]
 
                         current_img = sample['current_img']
@@ -308,12 +363,22 @@ class Evaluator(object):
                         if 'current_label' in sample.keys():
                             current_label = sample['current_label'].cuda(
                                 self.gpu, non_blocking=True).float()
+                            if self.cfg.TEST_PANO:
+                                obj_nums = sample['meta']['obj_num']
+                                obj_nums = [int(_obj_nums) for _obj_nums in obj_nums]
+                                obj_mapping = sample['meta']['obj_mapping']
                         else:
                             current_label = None
 
                         #############################################################
 
+                        if aug_idx == 0:
+                            start.record()
+
                         if frame_idx == 0:
+                            if cfg.TEST_BOX_FILTER:
+                                box_dict.update(label2box(current_label.squeeze(0)))
+                                box_dict = check_box(box_dict,current_img.shape[2],current_img.shape[3])
                             _current_label = F.interpolate(
                                 current_label,
                                 size=current_img.size()[2:],
@@ -321,27 +386,26 @@ class Evaluator(object):
                             engine.add_reference_frame(current_img,
                                                        _current_label,
                                                        frame_step=0,
-                                                       obj_nums=obj_nums)
+                                                       obj_nums=obj_mapping if self.cfg.TEST_PANO else obj_nums)
                         else:
-                            if aug_idx == 0:
-                                seq_timers.append([])
-                                now_timer = torch.cuda.Event(
-                                    enable_timing=True)
-                                now_timer.record()
-                                seq_timers[-1].append(now_timer)
-
                             engine.match_propogate_one_frame(current_img)
-                            pred_logit = engine.decode_current_logits(
-                                (ori_height, ori_width))
+                            # downsampled pred_logit
+                            pred_logit = engine.decode_current_logits()
 
                             if is_flipped:
                                 pred_logit = flip_tensor(pred_logit, 3)
 
-                            pred_prob = torch.softmax(pred_logit, dim=1)
+                            pred_logit_resized = F.interpolate(pred_logit,size=(ori_height,ori_width),
+                                                    mode='bilinear',align_corners=cfg.MODEL_ALIGN_CORNERS)
+                            pred_prob = torch.softmax(pred_logit_resized, dim=1)
+                            
                             all_preds.append(pred_prob)
 
+                            is_inplace_flipped = cfg.TEST_INPLACE_FLIP
                             if not is_flipped and current_label is not None and new_obj_label is None:
                                 new_obj_label = current_label
+                            if is_inplace_flipped  and current_label is not None and new_obj_label is None:
+                                new_obj_label = flip_tensor(current_label,3)
 
                     if frame_idx > 0:
                         all_pred_probs = [
@@ -360,6 +424,13 @@ class Evaluator(object):
                         pred_label = torch.argmax(pred_prob,
                                                   dim=1,
                                                   keepdim=True).float()
+                        if cfg.TEST_BOX_FILTER:
+                            new_box_dict = label2box(pred_label.squeeze(0))
+                            pred_label,pred_prob = box_filter(box_dict,pred_label,pred_prob)
+                            for label,prob in zip(all_pred_labels,all_pred_probs):
+                                label,prob = box_filter(box_dict,label,prob)
+                            box_dict.update(label2box(pred_label.squeeze(0)))
+                            box_dict = check_box(box_dict,pred_label.shape[2],pred_label.shape[3])
 
                         if new_obj_label is not None:
                             keep = (new_obj_label == 0).float()
@@ -369,6 +440,25 @@ class Evaluator(object):
                             pred_label = pred_label * \
                                 keep + new_obj_label * (1 - keep)
                             new_obj_nums = [int(pred_label.max().item())]
+                            if cfg.TEST_BOX_FILTER:
+                                box_dict.update(label2box(pred_label.squeeze(0)))
+                                box_dict = check_box(box_dict,pred_label.shape[2],pred_label.shape[3])
+                            
+                            if cfg.TEST_SAVE_PROB:
+                                # !!! bug exits when obj>20
+                                # update pred_prob by new obj label
+                                for idx in range(obj_nums[0]+1,new_obj_nums[0]+1):
+                                    tmp_mask = new_obj_label.repeat(1,pred_prob.shape[1],1,1)==idx
+                                    pred_prob[tmp_mask] = 0.
+                                    new_prob_layer = torch.zeros_like(pred_prob[:,0])
+                                    new_prob_layer[new_obj_label.squeeze(0)==idx] = 1.
+                                    pred_prob = torch.cat([pred_prob,new_prob_layer.unsqueeze(0)],axis=1)
+                                    
+                                    # new_obj_label_s = F.interpolate(new_obj_label,size=pred_logit.shape[2:],mode='nearest')
+                                    # tmp_mask = new_obj_label_s.repeat(1,pred_prob.shape[1],1,1)==idx
+                                    # shift_val = 1e+10 if pred_logit.dtype==torch.float32 else 1e+4
+                                    # pred_logit[tmp_mask] = -shift_val
+                                    # pred_logit[:,idx][new_obj_label_s.squeeze(0)==idx] = shift_val
 
                             if cfg.TEST_FLIP:
                                 all_flip_pred_labels = [
@@ -393,11 +483,8 @@ class Evaluator(object):
                                 engine.add_reference_frame(
                                     current_img,
                                     current_label,
-                                    obj_nums=new_obj_nums,
+                                    obj_nums=obj_mapping if self.cfg.TEST_PANO else new_obj_nums,
                                     frame_step=frame_idx)
-                                engine.decode_current_logits(
-                                    (ori_height, ori_width))
-                                engine.update_memory(current_label)
                         else:
                             if not cfg.MODEL_USE_PREV_PROB:
                                 if cfg.TEST_FLIP:
@@ -442,55 +529,53 @@ class Evaluator(object):
                                         mode="nearest")
                                     engine.update_memory(current_prob)
 
-                        now_timer = torch.cuda.Event(enable_timing=True)
-                        now_timer.record()
-                        seq_timers[-1].append((now_timer))
+                        end.record()
+                        torch.cuda.synchronize()
+                        one_frametime += start.elapsed_time(end) / 1e3
 
-                        if cfg.TEST_FRAME_LOG:
-                            torch.cuda.synchronize()
-                            one_frametime = seq_timers[-1][0].elapsed_time(
-                                seq_timers[-1][1]) / 1e3
+                        seq_total_time += one_frametime
+                        seq_total_frame += 1
+                        if cfg.TEST_PANO:
+                            obj_num = obj_nums[0] + obj_nums[1]
+                        else:
                             obj_num = obj_nums[0]
+                        if cfg.TEST_FRAME_LOG:
                             print(
                                 'GPU {} - Frame: {} - Obj Num: {}, Time: {}ms'.
                                 format(self.gpu, imgname[0].split('.')[0],
                                        obj_num, int(one_frametime * 1e3)))
                         # Save result
-                        seq_pred_masks['dense'].append({
-                            'path':
+                        save_mask(
+                            pred_label.squeeze(0).squeeze(0),
                             os.path.join(self.result_root, seq_name,
                                          imgname[0].split('.')[0] + '.png'),
-                            'mask':
-                            pred_label,
-                            'obj_idx':
-                            obj_idx
-                        })
+                            obj_idx)
                         if 'all_frames' in cfg.TEST_DATASET_SPLIT and imgname in images_sparse:
-                            seq_pred_masks['sparse'].append({
-                                'path':
+                            save_mask(
+                                pred_label.squeeze(0).squeeze(0),
                                 os.path.join(self.result_root_sparse, seq_name,
                                              imgname[0].split('.')[0] +
-                                             '.png'),
-                                'mask':
-                                pred_label,
-                                'obj_idx':
-                                obj_idx
-                            })
-
-                # Save result
-                for mask_result in seq_pred_masks['dense'] + seq_pred_masks[
-                        'sparse']:
-                    save_mask(mask_result['mask'].squeeze(0).squeeze(0),
-                              mask_result['path'], mask_result['obj_idx'])
-                del (seq_pred_masks)
-
-                for timer in seq_timers:
-                    torch.cuda.synchronize()
-                    one_frametime = timer[0].elapsed_time(timer[1]) / 1e3
-                    seq_total_time += one_frametime
-                    seq_total_frame += 1
-                del (seq_timers)
-
+                                             '.png'), obj_idx)
+                        if cfg.TEST_SAVE_PROB:
+                            if 'all_frames' not in cfg.TEST_DATASET_SPLIT:
+                                save_prob(pred_prob, #(B,C,H,W)
+                                    os.path.join(self.result_root_prob,seq_name,imgname[0].split('.')[0] +
+                                                '.npy'), obj_idx,
+                                                scale=cfg.TEST_SAVE_PROB_SCALE)
+                            elif imgname in images_sparse:
+                                save_prob(pred_prob,#(B,C,H,W)
+                                    os.path.join(self.result_root_prob,seq_name,imgname[0].split('.')[0] +
+                                                '.npy'), obj_idx,
+                                                scale=cfg.TEST_SAVE_PROB_SCALE)
+                        if cfg.TEST_SAVE_LOGIT:
+                            if 'all_frames' not in cfg.TEST_DATASET_SPLIT:
+                                save_logit(pred_logit.squeeze(0), #(C,H,W)
+                                    os.path.join(self.result_root_logit,seq_name,imgname[0].split('.')[0] +
+                                                '.pt'), obj_idx)
+                            elif imgname in images_sparse:
+                                save_logit(pred_logit.squeeze(0),#(C,H,W)
+                                    os.path.join(self.result_root_logit,seq_name,imgname[0].split('.')[0] +
+                                                '.pt'), obj_idx)
                 seq_avg_time_per_frame = seq_total_time / seq_total_frame
                 total_time += seq_total_time
                 total_frame += seq_total_frame

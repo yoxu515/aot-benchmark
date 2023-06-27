@@ -17,7 +17,7 @@ class DeAOTEngine(AOTEngine):
                          short_term_mem_skip)
         self.layer_loss_scaling_ratio = layer_loss_scaling_ratio
 
-    def update_short_term_memory(self, curr_mask, curr_id_emb=None, skip_long_term_update=False):
+    def update_short_term_memory(self, curr_mask, curr_id_emb=None):
 
         if curr_id_emb is None:
             if len(curr_mask.size()) == 3 or curr_mask.size()[0] == 1:
@@ -50,9 +50,7 @@ class DeAOTEngine(AOTEngine):
         self.short_term_memories = self.short_term_memories_list[0]
 
         if self.frame_step - self.last_mem_step >= self.long_term_mem_gap:
-            # skip the update of long-term memory or not
-            if not skip_long_term_update: 
-                self.update_long_term_memory(lstt_curr_memories)
+            self.update_long_term_memory(lstt_curr_memories)
             self.last_mem_step = self.frame_step
 
 
@@ -78,11 +76,16 @@ class DeAOTInferEngine(AOTInferEngine):
             new_engine.eval()
             self.aot_engines.append(new_engine)
 
-        separated_masks, separated_obj_nums = self.separate_mask(
-            mask, obj_nums)
+        separated_masks = self.separate_mask(mask)
+        
+        separated_obj_nums = [
+            self.max_aot_obj_num for _ in range(len(self.aot_engines)-1)
+        ]
+        separated_obj_nums.append(obj_nums - self.max_aot_obj_num * (len(self.aot_engines)-1))
+        
         img_embs = None
-        for aot_engine, separated_mask, separated_obj_num in zip(
-                self.aot_engines, separated_masks, separated_obj_nums):
+        for aot_engine, separated_mask, separated_obj_num in zip(self.aot_engines,
+                                              separated_masks, separated_obj_nums):
             aot_engine.add_reference_frame(img,
                                            separated_mask,
                                            obj_nums=[separated_obj_num],

@@ -1,9 +1,32 @@
+from turtle import shape
 import torch
 import os
-import shutil
 import numpy as np
 
-
+def merge_shape(m_shape,v):
+    if m_shape == v.shape:
+        return v
+    elif len(m_shape) != len(v.shape):
+        raise NotImplementedError
+    else:
+        print(v.shape,'to',m_shape)
+        shape_list = []
+        for i in range(len(v.shape)):
+            m_dim = m_shape[i]
+            v_dim = v.shape[i]
+            if m_dim < v_dim:
+                shape_list.append(m_dim)
+            elif m_dim == v_dim:
+                shape_list.append(v_dim)
+            else:
+                print('param extention not allowed!')
+                return None
+        if len(v.shape) ==1:
+            return v[:shape_list[0]]
+        elif len(v.shape) == 4:
+            return v[:shape_list[0],:shape_list[1],:shape_list[2],:shape_list[3]]
+        else:
+            return None
 def load_network_and_optimizer(net, opt, pretrained_dir, gpu, scaler=None):
     pretrained = torch.load(pretrained_dir,
                             map_location=torch.device("cuda:" + str(gpu)))
@@ -87,10 +110,14 @@ def load_network(net, pretrained_dir, gpu):
     pretrained_dict_remove = []
     for k, v in pretrained_dict.items():
         if k in model_dict:
-            pretrained_dict_update[k] = v
+            _v = merge_shape(model_dict[k].shape,v)
+            if _v != None:
+                pretrained_dict_update[k] = _v
         elif k[:7] == 'module.':
             if k[7:] in model_dict:
-                pretrained_dict_update[k[7:]] = v
+                _v = merge_shape(model_dict[k[7:]].shape,v)
+                if _v != None:
+                    pretrained_dict_update[k[7:]] = _v
         else:
             pretrained_dict_remove.append(k)
     model_dict.update(pretrained_dict_update)
@@ -125,7 +152,7 @@ def save_network(net,
         torch.save(ckpt, save_dir)
 
     all_ckpt = os.listdir(save_path)
-    if len(all_ckpt) > max_keep:
+    if max_keep is not None and len(all_ckpt) > max_keep:
         all_step = []
         for ckpt_name in all_ckpt:
             step = int(ckpt_name.split('_')[-1].split('.')[0])
@@ -134,30 +161,3 @@ def save_network(net,
         for step in all_step:
             ckpt_path = os.path.join(save_path, 'save_step_%s.pth' % (step))
             os.system('rm {}'.format(ckpt_path))
-
-
-def cp_ckpt(remote_dir="data_wd/youtube_vos_jobs/result", curr_dir="backup"):
-    exps = os.listdir(curr_dir)
-    for exp in exps:
-        exp_dir = os.path.join(curr_dir, exp)
-        stages = os.listdir(exp_dir)
-        for stage in stages:
-            stage_dir = os.path.join(exp_dir, stage)
-            finals = ["ema_ckpt", "ckpt"]
-            for final in finals:
-                final_dir = os.path.join(stage_dir, final)
-                ckpts = os.listdir(final_dir)
-                for ckpt in ckpts:
-                    if '.pth' not in ckpt:
-                        continue
-                    curr_ckpt_path = os.path.join(final_dir, ckpt)
-                    remote_ckpt_path = os.path.join(remote_dir, exp, stage,
-                                                    final, ckpt)
-                    if os.path.exists(remote_ckpt_path):
-                        os.system('rm {}'.format(remote_ckpt_path))
-                    try:
-                        shutil.copy(curr_ckpt_path, remote_ckpt_path)
-                        print("Copy {} to {}.".format(curr_ckpt_path,
-                                                      remote_ckpt_path))
-                    except OSError as Inst:
-                        return

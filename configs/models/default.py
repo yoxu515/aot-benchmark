@@ -20,8 +20,45 @@ class DefaultModelConfig():
         self.MODEL_USE_PREV_PROB = False
 
         self.TRAIN_LONG_TERM_MEM_GAP = 9999
-        self.TRAIN_AUG_TYPE = 'v1'
 
         self.TEST_LONG_TERM_MEM_GAP = 9999
+        self.TEST_SHORT_TERM_MEM_GAP = 1
+        self.TEST_LONG_TERM_MEM_MAX = 9999
 
-        self.TEST_SHORT_TERM_MEM_SKIP = 1
+        # multi-scale param
+        self.MODEL_MS_LSTT_NUMS = [2,1,1,1]
+        self.MODEL_MS_ENCODER_EMBEDDING_DIMS = [256,256,128,128]
+        self.MODEL_MS_SCALES = [16,16,8,4]
+        self.MODEL_MS_SELF_HEADS = [8,1,1,1]
+        self.MODEL_MS_ATT_HEADS = [8,1,1,1]
+        self.MODEL_MS_ATT_DIMS = [None,None,None,None]
+        self.MODEL_MS_FEEDFOWARD_DIMS = [1024,1024,512,512]
+        self.MODEL_MS_GLOBAL_DILATIONS = [1,1,2,4]
+        self.MODEL_MS_LOCAL_DILATIONS = [1,1,1,1]
+        self.MODEL_MS_CONV_DILATION = False
+        self.TRAIN_MS_LSTT_EMB_DROPOUTS = [0.,0.,0.,0.]
+        self.MODEL_MS_SHARE_ID = False
+        self.MODEL_MS_SHARE_ID_SCALE = 0
+        self.MODEL_DECODER_RES = False
+        self.MODEL_DECODER_RES_IN = False
+        self.MODEL_USE_RELATIVE_V = True
+        self.MODEL_USE_SELF_POS = True
+
+        self.TRAIN_MS_LSTT_DROPPATH = [0.1,0.1,0.1,0.1]
+        self.TRAIN_MS_LSTT_DROPPATH_SCALING = [False,False,False,False]
+        self.TRAIN_MS_LSTT_DROPPATH_LST = [False,False,False,False]
+        self.TRAIN_MS_LSTT_LT_DROPOUT = [0.,0.,0.,0.]
+        self.TRAIN_MS_LSTT_ST_DROPOUT = [0.,0.,0.,0.]
+        self.TRAIN_MS_LSTT_MEMORY_DILATION = True
+
+        self.MODEL_USE_ID_ENCODER = False
+        self.MODEL_ID_ENCODER = 'resnet18'
+        self.MODEL_ID_ENCODER_DIM = [64, 128, 256, 256]
+        self.MODEL_ID_ENCODER_FROZEN_BN = False
+        self.MODEL_ID_ENCODER_FREEZE_AT = -1
+        self.MODEL_ID_ENCODER_USE_LN = False
+        self.MODEL_USE_ID_BANK_POST_CONV = False
+        self.MODEL_ID_BANK_POST_CONV_USE_LN = False
+        self.MODEL_SEP_ID_BANK = False
+        
+        

@@ -2,7 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
+class LayerNorm2d(nn.Module):
+    def __init__(self, normalized_shape):
+        super().__init__()
+        self.ln = nn.LayerNorm(normalized_shape)
+    def forward(self,x):
+        return self.ln(x.permute(2,3,0,1)).permute(2,3,0,1)
 class FrozenBatchNorm2d(nn.Module):
     """
     BatchNorm2d where the batch statistics and the affine parameters

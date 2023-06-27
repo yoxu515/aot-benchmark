@@ -29,12 +29,9 @@ def main():
     parser = argparse.ArgumentParser(description="Eval VOS")
     parser.add_argument('--exp_name', type=str, default='default')
 
-    parser.add_argument('--stage', type=str, default='pre')
-    parser.add_argument('--model', type=str, default='aott')
+    parser.add_argument('--config', type=str, default='pre')
+    # parser.add_argument('--model', type=str, default='aott')
     parser.add_argument('--lstt_num', type=int, default=-1)
-    parser.add_argument('--lt_gap', type=int, default=-1)
-    parser.add_argument('--st_skip', type=int, default=-1)
-    parser.add_argument('--max_id_num', type=int, default='-1')
 
     parser.add_argument('--gpu_id', type=int, default=0)
     parser.add_argument('--gpu_num', type=int, default=1)
@@ -50,32 +47,45 @@ def main():
 
     parser.add_argument('--flip', action='store_true')
     parser.set_defaults(flip=False)
+    parser.add_argument('--inflip', action='store_true')
+    parser.set_defaults(inflip=False)
     parser.add_argument('--ms', nargs='+', type=float, default=[1.])
 
     parser.add_argument('--max_resolution', type=float, default=480 * 1.3)
 
     parser.add_argument('--amp', action='store_true')
+    parser.add_argument('--long_gap', type=int, default=5)
+    parser.add_argument('--short_gap', type=int, default=1)
+    parser.add_argument('--long_max', type=int, default=9999)
+    parser.add_argument('--save_prob',action='store_true')
+    parser.set_defaults(save_prob=False)
+    parser.add_argument('--save_prob_scale',type=float,default=0.5)
     parser.set_defaults(amp=False)
+    parser.add_argument('--top_k',type=float,default=-1)
 
     args = parser.parse_args()
 
-    engine_config = importlib.import_module('configs.' + args.stage)
-    cfg = engine_config.EngineConfig(args.exp_name, args.model)
+    engine_config = importlib.import_module('configs.' + args.config)
+    cfg = engine_config.EngineConfig(args.exp_name)
 
     cfg.TEST_EMA = args.ema
 
     cfg.TEST_GPU_ID = args.gpu_id
     cfg.TEST_GPU_NUM = args.gpu_num
 
+    cfg.TEST_SAVE_PROB = args.save_prob
+    cfg.TEST_SAVE_PROB_SCALE = args.save_prob_scale
+    cfg.TEST_TOP_K = args.top_k
+    
+    if args.long_gap != 5:
+        cfg.TEST_LONG_TERM_MEM_GAP = args.long_gap
+    if args.short_gap != 1:
+        cfg.TEST_SHORT_TERM_MEM_GAP = args.short_gap
+    if args.long_max != 9999:
+        cfg.TEST_LONG_TERM_MEM_MAX = args.long_max
+
     if args.lstt_num > 0:
         cfg.MODEL_LSTT_NUM = args.lstt_num
-    if args.lt_gap > 0:
-        cfg.TEST_LONG_TERM_MEM_GAP = args.lt_gap
-    if args.st_skip > 0:
-        cfg.TEST_SHORT_TERM_MEM_SKIP = args.st_skip
-
-    if args.max_id_num > 0:
-        cfg.MODEL_MAX_OBJ_NUM = args.max_id_num
 
     if args.ckpt_path != '':
         cfg.TEST_CKPT_PATH = args.ckpt_path
@@ -89,6 +99,7 @@ def main():
         cfg.TEST_DATASET_SPLIT = args.split
 
     cfg.TEST_FLIP = args.flip
+    cfg.TEST_INPLACE_FLIP = args.inflip
     cfg.TEST_MULTISCALE = args.ms
 
     if cfg.TEST_MULTISCALE != [1.]:

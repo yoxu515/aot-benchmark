@@ -7,6 +7,7 @@ from PIL import Image, ImageFilter
 from collections.abc import Sequence
 
 import torch
+import torchvision
 import torchvision.transforms.functional as TF
 
 _pil_interpolation_to_str = {
@@ -219,9 +220,8 @@ class RandomAffine(object):
                               self.shear, img.size)
         img = TF.affine(img,
                         *ret,
-                        resample=self.resample,
-                        fillcolor=self.fillcolor)
-        mask = TF.affine(mask, *ret, resample=Image.NEAREST, fillcolor=0)
+                        fill=self.fillcolor)
+        mask = TF.affine(mask, *ret, interpolation=torchvision.transforms.InterpolationMode.NEAREST, fill=0)
         return img, mask
 
     def __repr__(self):

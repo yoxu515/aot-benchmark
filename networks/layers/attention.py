@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from networks.layers.basic import DropOutLogit, ScaleOffset, DWConv2d
 
-
 def multiply_by_ychunks(x, y, chunks=1):
     if chunks <= 1:
         return x @ y
@@ -92,8 +91,16 @@ class MultiheadAttention(nn.Module):
             QK = 2 * QK - K.pow(2).sum(dim=-2, keepdim=True)
 
         # Activation
-        if not self.training and self.top_k > 0 and self.top_k < QK.size()[-1]:
-            top_QK, indices = torch.topk(QK, k=self.top_k, dim=-1)
+        if not self.training and self.top_k != -1 and self.top_k < QK.size()[-1]:
+            if self.top_k > 1:
+                k = int(self.top_k)
+            elif self.top_k > 0 and self.top_k < 1:
+                k = int(QK.size()[-1] * self.top_k)
+            elif self.top_k > -1 and self.top_k < 0:
+                k = int(QK.size()[-2] * (-self.top_k))
+            else:
+                raise NotImplementedError
+            top_QK, indices = torch.topk(QK, k=k, dim=-1)
             top_attn = torch.softmax(top_QK, dim=-1)
             attn = torch.zeros_like(QK).scatter_(-1, indices, top_attn)
         else:
@@ -188,7 +195,7 @@ class MultiheadLocalAttentionV1(nn.Module):
 
         q = q.view(-1, hidden_dim, h, w)
         k = k.reshape(-1, hidden_dim, h, w).contiguous()
-        unfolded_vu = self.pad_and_unfold(v).view(
+        unfolded_v = self.pad_and_unfold(v).view(
             n, self.num_head, hidden_dim, self.window_size * self.window_size,
             h * w) + self.relative_emb_v.unsqueeze(0).unsqueeze(-1)
 
@@ -219,7 +226,7 @@ class MultiheadLocalAttentionV1(nn.Module):
 
         local_attn = self.dropout(local_attn)
 
-        output = (local_attn.unsqueeze(2) * unfolded_vu).sum(dim=3).permute(
+        output = (local_attn.unsqueeze(2) * unfolded_v).sum(dim=3).permute(
             3, 0, 1, 2).view(h * w, n, c)
 
         output = self.projection(output)
@@ -248,7 +255,8 @@ class MultiheadLocalAttentionV2(nn.Module):
                  use_linear=True,
                  enable_corr=True,
                  d_att=None,
-                 use_dis=False):
+                 use_dis=False,
+                 use_relative_v=True):
         super().__init__()
         self.dilation = dilation
         self.window_size = 2 * max_dis + 1
@@ -258,6 +266,7 @@ class MultiheadLocalAttentionV2(nn.Module):
         self.d_att = self.hidden_dim if d_att is None else d_att
         self.T = self.d_att**0.5
         self.use_dis = use_dis
+        self.use_relative_v = use_relative_v
 
         self.use_linear = use_linear
         if use_linear:
@@ -265,16 +274,18 @@ class MultiheadLocalAttentionV2(nn.Module):
             self.linear_K = nn.Conv2d(d_model, d_model, kernel_size=1)
             self.linear_V = nn.Conv2d(d_model, d_model, kernel_size=1)
 
+        
         self.relative_emb_k = nn.Conv2d(self.d_att * self.num_head,
                                         num_head * self.window_size *
                                         self.window_size,
                                         kernel_size=1,
                                         groups=num_head)
-        self.relative_emb_v = nn.Parameter(
-            torch.zeros([
-                self.num_head, d_model // self.num_head,
-                self.window_size * self.window_size
-            ]))
+        if self.use_relative_v:    
+            self.relative_emb_v = nn.Parameter(
+                torch.zeros([
+                    self.num_head, d_model // self.num_head,
+                    self.window_size * self.window_size
+                ]))
 
         self.enable_corr = enable_corr
 
@@ -327,8 +338,8 @@ class MultiheadLocalAttentionV2(nn.Module):
         v = v.view(-1, self.num_head, hidden_dim, h * w)
 
         relative_emb = relative_emb.view(n, self.num_head,
-                                         self.window_size * self.window_size,
-                                         h * w)
+                                        self.window_size * self.window_size,
+                                        h * w)
 
         if self.enable_corr:
             qk = self.correlation_sampler(q, k).view(
@@ -353,15 +364,20 @@ class MultiheadLocalAttentionV2(nn.Module):
 
         local_attn = self.dropout(local_attn)
 
-        agg_bias = torch.einsum('bhwn,hcw->bhnc', local_attn,
-                                self.relative_emb_v)
+        if self.use_relative_v:
+            agg_bias = torch.einsum('bhwn,hcw->bhnc', local_attn,
+                                    self.relative_emb_v)
 
         global_attn = self.local2global(local_attn, h, w)
 
         agg_value = (global_attn @ v.transpose(-2, -1))
 
-        output = (agg_value + agg_bias).permute(2, 0, 1,
-                                                3).reshape(h * w, n, c)
+        if self.use_relative_v:
+            output = (agg_value + agg_bias).permute(2, 0, 1,
+                                                    3).reshape(h * w, n, c)
+        else:
+            output = (agg_value).permute(2, 0, 1,
+                                                    3).reshape(h * w, n, c)
 
         output = self.projection(output)
 
@@ -570,6 +586,7 @@ class MultiheadLocalAttentionV3(nn.Module):
         return padded_local_mask, local_mask
 
 
+# GAU Attention
 def linear_gate(x, dim=-1):
     # return F.relu_(x).pow(2.) / x.size()[dim]
     return torch.softmax(x, dim=dim)
@@ -577,6 +594,8 @@ def linear_gate(x, dim=-1):
 
 def silu(x):
     return x * torch.sigmoid(x)
+
+
 
 
 class GatedPropagation(nn.Module):
@@ -681,8 +700,17 @@ class GatedPropagation(nn.Module):
             QK = 2 * QK - K.pow(2).sum(dim=-2, keepdim=True)
 
         # Activation
-        if not self.training and self.top_k > 0 and self.top_k < QK.size()[-1]:
-            top_QK, indices = torch.topk(QK, k=self.top_k, dim=-1)
+        if not self.training and self.top_k != -1 and self.top_k < QK.size()[-1]:
+            if self.top_k > 1:
+                k = int(self.top_k)
+            elif self.top_k > 0 and self.top_k < 1:
+                k = int(QK.size()[-1] * self.top_k)
+            elif self.top_k > -1 and self.top_k < 0:
+                k = int(QK.size()[-2] * (-self.top_k))
+            else:
+                raise NotImplementedError
+
+            top_QK, indices = torch.topk(QK, k=k, dim=-1)
             top_attn = linear_gate(top_QK, dim=-1)
             attn = torch.zeros_like(QK).scatter_(-1, indices, top_attn)
         else:
@@ -821,7 +849,7 @@ class LocalGatedPropagation(nn.Module):
                 n, self.num_head, self.window_size * self.window_size, h * w)
         else:
             unfolded_k = self.pad_and_unfold(k).view(
-                n * self.num_head, self.d_att,
+                n * self.num_head, hidden_dim,
                 self.window_size * self.window_size, h, w)
             qk = (q.unsqueeze(2) * unfolded_k).sum(dim=1).view(
                 n, self.num_head, self.window_size * self.window_size, h * w)

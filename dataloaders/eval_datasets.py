@@ -7,7 +7,7 @@ from PIL import Image
 
 import numpy as np
 from torch.utils.data import Dataset
-
+from glob import glob
 from utils.image import _palette
 
 
@@ -112,6 +112,136 @@ class VOSTest(Dataset):
             'flip': False,
             'obj_idx': obj_idx
         }
+
+        if self.transform is not None:
+            sample = self.transform(sample)
+        return sample
+
+class PanoVOSTest(Dataset):
+    def __init__(self,
+                 image_root,
+                 label_root,
+                 seq_name,
+                 images,
+                 labels,
+                 rgb=True,
+                 transform=None,
+                 single_obj=False,
+                 resolution=None,
+                 obj_class_dict=None,
+                 thing_class=None,
+                 stuff_class=None):
+        self.image_root = image_root
+        self.label_root = label_root
+        self.seq_name = seq_name
+        self.images = images
+        self.labels = labels
+        self.obj_num = 1
+        self.num_frame = len(self.images)
+        self.transform = transform
+        self.rgb = rgb
+        self.single_obj = single_obj
+        self.resolution = resolution
+        self.obj_class_dict = obj_class_dict
+        self.thing_class = thing_class
+        self.stuff_class = stuff_class
+        self.obj_nums = []
+        self.obj_indices = []
+
+        curr_objs = [0]
+        for img_name in self.images:
+            self.obj_nums.append(len(curr_objs) - 1)
+            current_label_name = img_name.split('.')[0] + '.png'
+            if current_label_name in self.labels:
+                current_label = self.read_label(current_label_name)
+                curr_obj = list(np.unique(current_label))
+                for obj_idx in curr_obj:
+                    if obj_idx not in curr_objs:
+                        curr_objs.append(obj_idx)
+            self.obj_indices.append(curr_objs.copy())
+
+        self.obj_nums[0] = self.obj_nums[1]
+
+    def __len__(self):
+        return len(self.images)
+
+    def read_image(self, idx):
+        img_name = self.images[idx]
+        img_path = os.path.join(self.image_root, self.seq_name, img_name)
+        img = cv2.imread(img_path)
+        img = np.array(img, dtype=np.float32)
+        if self.rgb:
+            img = img[:, :, [2, 1, 0]]
+        return img
+
+    def read_label(self, label_name, squeeze_idx=None):
+        label_path = os.path.join(self.label_root, self.seq_name, label_name)
+        label = Image.open(label_path)
+        label = np.array(label, dtype=np.uint8)
+        if self.single_obj:
+            label = (label > 0).astype(np.uint8)
+        elif squeeze_idx is not None:
+            squeezed_label = label * 0
+            for idx in range(len(squeeze_idx)):
+                obj_id = squeeze_idx[idx]
+                if obj_id == 0:
+                    continue
+                mask = label == obj_id
+                squeezed_label += (mask * idx).astype(np.uint8)
+            label = squeezed_label
+        return label
+
+    def __getitem__(self, idx):
+        img_name = self.images[idx]
+        current_img = self.read_image(idx)
+        height, width, channels = current_img.shape
+        if self.resolution is not None:
+            width = int(np.ceil(
+                float(width) * self.resolution / float(height)))
+            height = int(self.resolution)
+
+        current_label_name = img_name.split('.')[0] + '.png'
+        obj_num = self.obj_nums[idx]
+        obj_idx = self.obj_indices[idx]
+        
+        sample = {}
+        sample['meta'] = {
+            'seq_name': self.seq_name,
+            'frame_num': self.num_frame,
+            'obj_num': obj_num,
+            'current_name': img_name,
+            'height': height,
+            'width': width,
+            'flip': False,
+            'obj_idx': obj_idx
+        }
+
+        if current_label_name in self.labels:
+            current_label = self.read_label(current_label_name, obj_idx)
+            sample['current_img'] = current_img
+            sample['current_label'] = current_label
+            
+            obj_mapping = {}
+            stuff_idx = 0
+            thing_idx = 0
+            seq_mapping = self.obj_class_dict[self.seq_name]
+            for idx,label_i in enumerate(obj_idx):
+                if idx == 0:
+                    obj_mapping[0] = [0,stuff_idx]
+                    stuff_idx += 1
+                elif int(seq_mapping[str(idx)]) in self.stuff_class:
+                    obj_mapping[idx] = [0,stuff_idx]
+                    stuff_idx += 1
+                elif int(seq_mapping[str(idx)]) in self.thing_class:
+                    obj_mapping[idx] = [1,thing_idx]
+                    thing_idx += 1
+                else:
+                    raise ValueError('bad class idx')
+            sample['meta']['obj_mapping'] = obj_mapping
+            sample['meta']['obj_num'] = [stuff_idx-1,thing_idx-1]
+        else:
+            sample['current_img'] = current_img
+        
 
         if self.transform is not None:
             sample = self.transform(sample)
@@ -260,6 +390,99 @@ class YOUTUBEVOS_DenseTest(object):
                               rgb=self.rgb)
         seq_dataset.images_sparse = images_sparse
 
+        return seq_dataset
+
+    def _check_preprocess(self):
+        _seq_list_file = self.seq_list_file
+        if not os.path.isfile(_seq_list_file):
+            print(_seq_list_file)
+            return False
+        else:
+            self.ann_f = json.load(open(self.seq_list_file, 'r'))['videos']
+            return True
+
+
+class VIPOSeg_Test(object):
+    def __init__(self,
+                 root='./datasets/VIPOSeg',
+                 split='val',
+                 transform=None,
+                 rgb=True,
+                 result_root=None,
+                 test_pano=False):
+        if split == 'val':
+            split = 'valid'
+        root = os.path.join(root, split)
+        self.db_root_dir = root
+        self.result_root = result_root
+        self.rgb = rgb
+        self.transform = transform
+        self.seq_list_file = os.path.join(self.db_root_dir, 'meta.json')
+        self._check_preprocess()
+        self.seqs = list(self.ann_f.keys())
+        self.image_root = os.path.join(root, 'JPEGImages')
+        self.label_root = os.path.join(root, 'Annotations')
+        obj_class_file = os.path.join(root,'obj_class.json')
+        self.test_pano = test_pano
+        import json
+        with open(obj_class_file,'r') as f:
+            self.obj_class_dict = json.load(f)
+        print('VIPOSeg obj class file loaded')
+        self.thing_class = [2, 4, 8, 10, 41, 43, 44, 46, 47, 48, 49, 50, 51, 52, 54, 55, 56, 60, 61, 62, 63,
+         64, 65, 72, 74, 76, 77, 78, 79, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 95, 96, 97, 99, 100,
+          101, 102, 106, 107, 108, 109, 114, 115, 116, 117, 118, 122, 123]
+        self.stuff_class = [0, 1, 3, 5, 6, 7, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+         26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42, 45, 53, 57, 58, 59, 66, 67, 68, 69,
+          70, 71, 73, 75, 80, 81, 93, 94, 98, 103, 104, 105, 110, 111, 112, 113, 119, 120, 121]
+
+    def __len__(self):
+        return len(self.seqs)
+
+    def __getitem__(self, idx):
+        seq_name = self.seqs[idx]
+        data = self.ann_f[seq_name]['objects']
+        obj_names = list(data.keys())
+        images = []
+        labels = []
+        for obj_n in obj_names:
+            images += map(lambda x: x + '.jpg', list(data[obj_n]["frames"]))
+            labels.append(data[obj_n]["frames"][0] + '.png')
+        images = np.sort(np.unique(images))
+        labels = np.sort(np.unique(labels))
+
+        try:
+            if not os.path.isfile(
+                    os.path.join(self.result_root, seq_name, labels[0])):
+                if not os.path.exists(os.path.join(self.result_root,
+                                                   seq_name)):
+                    os.makedirs(os.path.join(self.result_root, seq_name))
+                shutil.copy(
+                    os.path.join(self.label_root, seq_name, labels[0]),
+                    os.path.join(self.result_root, seq_name, labels[0]))
+        except Exception as inst:
+            print(inst)
+            print('Failed to create a result folder for sequence {}.'.format(
+                seq_name))
+        
+        if self.test_pano:
+            seq_dataset = PanoVOSTest(self.image_root,
+                                self.label_root,
+                                seq_name,
+                                images,
+                                labels,
+                                transform=self.transform,
+                                rgb=self.rgb,
+                                obj_class_dict=self.obj_class_dict,
+                                thing_class=self.thing_class,
+                                stuff_class=self.stuff_class)
+        else:
+            seq_dataset = VOSTest(self.image_root,
+                                self.label_root,
+                                seq_name,
+                                images,
+                                labels,
+                                transform=self.transform,
+                                rgb=self.rgb)
         return seq_dataset
 
     def _check_preprocess(self):

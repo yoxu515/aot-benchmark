@@ -5,7 +5,7 @@ import importlib
 class DefaultEngineConfig():
     def __init__(self, exp_name='default', model='aott'):
         model_cfg = importlib.import_module('configs.models.' +
-                                            model).ModelConfig()
+                                            model.lower()).ModelConfig()
         self.__dict__.update(model_cfg.__dict__)  # add model config
 
         self.EXP_NAME = exp_name + '_' + self.MODEL_NAME
@@ -13,7 +13,7 @@ class DefaultEngineConfig():
         self.STAGE_NAME = 'YTB'
 
         self.DATASETS = ['youtubevos']
-        self.DATA_WORKERS = 8
+        self.DATA_WORKERS = 16 #8
         self.DATA_RANDOMCROP = (465,
                                 465) if self.MODEL_ALIGN_CORNERS else (464,
                                                                        464)
@@ -22,16 +22,35 @@ class DefaultEngineConfig():
         self.DATA_SHORT_EDGE_LEN = 480
         self.DATA_MIN_SCALE_FACTOR = 0.7
         self.DATA_MAX_SCALE_FACTOR = 1.3
+        
+        self.DATA_PRE_STRONG_AUG = False # for PRE
+        self.DATA_TPS_PROB = 0.0
+        self.DATA_TPS_SCALE = 0.0
+        self.DATA_RANDOM_GAUSSIAN_BLUR = 0.0 #0.3
+        self.DATA_RANDOM_GRAYSCALE = 0.0 #0.2
+        self.DATA_RANDOM_COLOR_JITTER = 0.0 #0.8
+        
         self.DATA_RANDOM_REVERSE_SEQ = True
         self.DATA_SEQ_LEN = 5
         self.DATA_DAVIS_REPEAT = 5
+        self.DATA_YTB_REPEAT = 1
         self.DATA_RANDOM_GAP_DAVIS = 12  # max frame interval between two sampled frames for DAVIS (24fps)
         self.DATA_RANDOM_GAP_YTB = 3  # max frame interval between two sampled frames for YouTube-VOS (6fps)
+        self.DATA_RANDOM_GAP_BL30K = 12
+        self.DATA_RANDOM_GAP_VIP = 3
         self.DATA_DYNAMIC_MERGE_PROB = 0.3
+        self.DATA_DYNAMIC_MERGE_PROB_BL30K = 0.0
+        self.DATA_DYNAMIC_MERGE_PROB_VIP = 0.1
+
+        self.DATA_YTB_BALANCE_SAMPLE = False
+        self.DATA_YTB_BALANCE_RATIO = 0.0
+        self.DATA_YTB_USE_VOSP = False
 
         self.PRETRAIN = True
         self.PRETRAIN_FULL = False  # if False, load encoder only
-        self.PRETRAIN_MODEL = './data_wd/pretrain_model/mobilenet_v2.pth'
+        self.PRETRAIN_MODEL = ''
+        self.PRETRAIN_ID_MODEL = ''
+        # self.PRETRAIN_MODEL = './data_wd/pretrain_model/mobilenet_v2.pth'
         # self.PRETRAIN_MODEL = './pretrain_models/mobilenet_v2-b0353104.pth'
 
         self.TRAIN_TOTAL_STEPS = 100000
@@ -58,17 +77,19 @@ class DefaultEngineConfig():
         self.TRAIN_SGD_MOMENTUM = 0.9
         self.TRAIN_GPUS = 4
         self.TRAIN_BATCH_SIZE = 16
-        self.TRAIN_TBLOG = False
+        self.TRAIN_TBLOG = True
         self.TRAIN_TBLOG_STEP = 50
         self.TRAIN_LOG_STEP = 20
-        self.TRAIN_IMG_LOG = True
+        self.TRAIN_IMG_LOG = False
         self.TRAIN_TOP_K_PERCENT_PIXELS = 0.15
-        self.TRAIN_SEQ_TRAINING_FREEZE_PARAMS = ['patch_wise_id_bank']
+        self.TRAIN_SEQ_TRAINING_FREEZE_PARAMS = ['patch_wise_id_bank','id_encoder','id_post_conv']
         self.TRAIN_SEQ_TRAINING_START_RATIO = 0.5
         self.TRAIN_HARD_MINING_RATIO = 0.5
         self.TRAIN_EMA_RATIO = 0.1
         self.TRAIN_CLIP_GRAD_NORM = 5.
-        self.TRAIN_SAVE_STEP = 5000
+        self.TRAIN_SAVE_STEP = 1000
+        self.TRAIN_SAVE_MED_STEP = 10000
+        self.TRAIN_START_SAVE_MED_RATIO = 1.0
         self.TRAIN_MAX_KEEP_CKPT = 8
         self.TRAIN_RESUME = False
         self.TRAIN_RESUME_CKPT = None
@@ -84,6 +105,7 @@ class DefaultEngineConfig():
         self.TRAIN_LSTT_DROPPATH_LST = False
         self.TRAIN_LSTT_LT_DROPOUT = 0.
         self.TRAIN_LSTT_ST_DROPOUT = 0.
+        self.TRAIN_PANO = False
 
         self.TEST_GPU_ID = 0
         self.TEST_GPU_NUM = 1
@@ -95,10 +117,20 @@ class DefaultEngineConfig():
         # if "None", evaluate the latest checkpoint.
         self.TEST_CKPT_STEP = None
         self.TEST_FLIP = False
+        self.TEST_INPLACE_FLIP = False
         self.TEST_MULTISCALE = [1]
         self.TEST_MAX_SHORT_EDGE = None
         self.TEST_MAX_LONG_EDGE = 800 * 1.3
         self.TEST_WORKERS = 4
+        self.TEST_SAVE_PROB = False
+        self.TEST_SAVE_PROB_SCALE = 0.5
+        self.TEST_SAVE_LOGIT = False
+        self.TEST_BOX_FILTER = False
+        self.TEST_TOP_K = -1
+        self.TEST_PANO = False
+
+        self.TEST_INTERMEDIATE_PRED = False
+        self.TRAIN_INTERMEDIATE_PRED_LOSS = False
 
         # GPU distribution
         self.DIST_ENABLE = True
@@ -106,29 +138,36 @@ class DefaultEngineConfig():
         self.DIST_URL = "tcp://127.0.0.1:13241"
         self.DIST_START_GPU = 0
 
-    def init_dir(self):
-        self.DIR_DATA = '../VOS02/datasets'#'./datasets'
+    def init_dir(self,data='./datasets',root='./results',eval=None):
+        self.DIR_DATA = data
         self.DIR_DAVIS = os.path.join(self.DIR_DATA, 'DAVIS')
         self.DIR_YTB = os.path.join(self.DIR_DATA, 'YTB')
         self.DIR_STATIC = os.path.join(self.DIR_DATA, 'Static')
+        self.DIR_BL30K = os.path.join(self.DIR_DATA,'BL30K')
+        self.DIR_VIP = os.path.join(self.DIR_DATA,'VIPOSeg')
 
-        self.DIR_ROOT = './'#'./data_wd/youtube_vos_jobs'
+        self.DIR_ROOT = root
 
         self.DIR_RESULT = os.path.join(self.DIR_ROOT, 'result', self.EXP_NAME,
                                        self.STAGE_NAME)
         self.DIR_CKPT = os.path.join(self.DIR_RESULT, 'ckpt')
+        self.DIR_AUX = os.path.join(self.DIR_RESULT, 'aux')
         self.DIR_EMA_CKPT = os.path.join(self.DIR_RESULT, 'ema_ckpt')
+        self.DIR_MED_CKPT = os.path.join(self.DIR_RESULT, 'med_ckpt')
         self.DIR_LOG = os.path.join(self.DIR_RESULT, 'log')
         self.DIR_TB_LOG = os.path.join(self.DIR_RESULT, 'log', 'tensorboard')
-        # self.DIR_IMG_LOG = os.path.join(self.DIR_RESULT, 'log', 'img')
-        # self.DIR_EVALUATION = os.path.join(self.DIR_RESULT, 'eval')
-        self.DIR_IMG_LOG = './img_logs'
-        self.DIR_EVALUATION = './results'
+        self.DIR_IMG_LOG = os.path.join(self.DIR_RESULT, 'log', 'img')
+        
+        if eval == None:
+            self.DIR_EVALUATION = os.path.join(self.DIR_RESULT, 'eval')
+        else:
+            self.DIR_EVAL = os.path.join(eval,'result',self.EXP_NAME,self.STAGE_NAME)
+            self.DIR_EVALUATION = os.path.join(self.DIR_EVAL,'eval')
 
         for path in [
                 self.DIR_RESULT, self.DIR_CKPT, self.DIR_EMA_CKPT,
                 self.DIR_LOG, self.DIR_EVALUATION, self.DIR_IMG_LOG,
-                self.DIR_TB_LOG
+                self.DIR_TB_LOG, self.DIR_MED_CKPT
         ]:
             if not os.path.isdir(path):
                 try:

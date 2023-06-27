@@ -11,11 +11,11 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from dataloaders.train_datasets import DAVIS2017_Train, YOUTUBEVOS_Train, StaticTrain, TEST
+from dataloaders.train_datasets import DAVIS2017_Train, YOUTUBEVOS_Train, StaticTrain, TEST, BL30K_Train, VIPOSeg_Train
 import dataloaders.video_transforms as tr
 
 from utils.meters import AverageMeter
-from utils.image import label2colormap, masked_image, save_image
+from utils.image import label2colormap, masked_image, save_image, custom_collate
 from utils.checkpoint import load_network_and_optimizer, load_network, save_network
 from utils.learning import adjust_learning_rate, get_trainable_params
 from utils.metric import pytorch_iou
@@ -28,7 +28,7 @@ from networks.engines import build_engine
 class Trainer(object):
     def __init__(self, rank, cfg, enable_amp=True):
         self.gpu = rank + cfg.DIST_START_GPU
-        self.gpu_num = cfg.TRAIN_GPUS 
+        self.gpu_num = cfg.TRAIN_GPUS
         self.rank = rank
         self.cfg = cfg
 
@@ -96,6 +96,7 @@ class Trainer(object):
                 self.ema = ExponentialMovingAverage(self.ema_params,
                                                     decay=ema_decay)
                 self.ema_dir = cfg.DIR_EMA_CKPT
+                self.med_dir = cfg.DIR_MED_CKPT
             except Exception as inst:
                 self.print_log(inst)
                 self.print_log('Error: failed to create EMA model!')
@@ -130,7 +131,10 @@ class Trainer(object):
         self.process_pretrained_model()
 
         if cfg.TRAIN_TBLOG and self.rank == 0:
-            from tensorboardX import SummaryWriter
+            try:
+                from tensorboardX import SummaryWriter
+            except:
+                from torch.utils.tensorboard import SummaryWriter
             self.tblogger = SummaryWriter(cfg.DIR_TB_LOG)
 
     def process_pretrained_model(self):
@@ -154,24 +158,11 @@ class Trainer(object):
         if cfg.TRAIN_RESUME:
             if self.rank == 0:
                 try:
-                    try:
-                        ema_ckpt_dir = os.path.join(
-                            self.ema_dir,
-                            'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
-                        ema_model, removed_dict = load_network(
-                            self.model, ema_ckpt_dir, self.gpu)
-                    except Exception as inst:
-                        self.print_log(inst)
-                        self.print_log('Try to use backup EMA checkpoint.')
-                        DIR_RESULT = './backup/{}/{}'.format(
-                            cfg.EXP_NAME, cfg.STAGE_NAME)
-                        DIR_EMA_CKPT = os.path.join(DIR_RESULT, 'ema_ckpt')
-                        ema_ckpt_dir = os.path.join(
-                            DIR_EMA_CKPT,
-                            'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
-                        ema_model, removed_dict = load_network(
-                            self.model, ema_ckpt_dir, self.gpu)
-
+                    ema_ckpt_dir = os.path.join(
+                        self.ema_dir,
+                        'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
+                    ema_model, removed_dict = load_network(
+                        self.model, ema_ckpt_dir, self.gpu)
                     if len(removed_dict) > 0:
                         self.print_log(
                             'Remove {} from EMA model.'.format(removed_dict))
@@ -198,12 +189,9 @@ class Trainer(object):
                     scaler=self.scaler)
             except Exception as inst:
                 self.print_log(inst)
-                self.print_log('Try to use backup checkpoint.')
-                DIR_RESULT = './backup/{}/{}'.format(cfg.EXP_NAME,
-                                                     cfg.STAGE_NAME)
-                DIR_CKPT = os.path.join(DIR_RESULT, 'ckpt')
                 resume_ckpt = os.path.join(
-                    DIR_CKPT, 'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
+                    'saved_models',
+                    'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
                 self.model, self.optimizer, removed_dict = load_network_and_optimizer(
                     self.model,
                     self.optimizer,
@@ -225,21 +213,8 @@ class Trainer(object):
 
         elif cfg.PRETRAIN:
             if cfg.PRETRAIN_FULL:
-                try:
-                    self.model, removed_dict = load_network(
-                        self.model, cfg.PRETRAIN_MODEL, self.gpu)
-                except Exception as inst:
-                    self.print_log(inst)
-                    self.print_log('Try to use backup EMA checkpoint.')
-                    DIR_RESULT = './backup/{}/{}'.format(
-                        cfg.EXP_NAME, cfg.STAGE_NAME)
-                    DIR_EMA_CKPT = os.path.join(DIR_RESULT, 'ema_ckpt')
-                    PRETRAIN_MODEL = os.path.join(
-                        DIR_EMA_CKPT,
-                        cfg.PRETRAIN_MODEL.split('/')[-1])
-                    self.model, removed_dict = load_network(
-                        self.model, PRETRAIN_MODEL, self.gpu)
-
+                self.model, removed_dict = load_network(
+                    self.model, cfg.PRETRAIN_MODEL, self.gpu)
                 if len(removed_dict) > 0:
                     self.print_log('Remove {} from pretrained model.'.format(
                         removed_dict))
@@ -255,38 +230,40 @@ class Trainer(object):
                     'Load pretrained backbone model from {}.'.format(
                         cfg.PRETRAIN_MODEL))
 
+                if cfg.MODEL_USE_ID_ENCODER and cfg.PRETRAIN_ID_MODEL != '':
+                    _, removed_dict = load_network(
+                        self.model.id_encoder,cfg.PRETRAIN_ID_MODEL, self.gpu
+                    )
+                    if len(removed_dict) > 0:
+                        self.print_log('Remove {} from pretrained id model.'.format(
+                            removed_dict))
+                    self.print_log(
+                        'Load pretrained id encoder model from {}.'.format(
+                            cfg.PRETRAIN_ID_MODEL))
+
     def prepare_dataset(self):
         cfg = self.cfg
         self.enable_prev_frame = cfg.TRAIN_ENABLE_PREV_FRAME
 
         self.print_log('Process dataset...')
-        if cfg.TRAIN_AUG_TYPE == 'v1':
-            composed_transforms = transforms.Compose([
-                tr.RandomScale(cfg.DATA_MIN_SCALE_FACTOR,
-                               cfg.DATA_MAX_SCALE_FACTOR,
-                               cfg.DATA_SHORT_EDGE_LEN),
-                tr.BalancedRandomCrop(cfg.DATA_RANDOMCROP,
-                                      max_obj_num=cfg.MODEL_MAX_OBJ_NUM),
-                tr.RandomHorizontalFlip(cfg.DATA_RANDOMFLIP),
-                tr.Resize(cfg.DATA_RANDOMCROP, use_padding=True),
-                tr.ToTensor()
-            ])
-        elif cfg.TRAIN_AUG_TYPE == 'v2':
-            composed_transforms = transforms.Compose([
-                tr.RandomScale(cfg.DATA_MIN_SCALE_FACTOR,
-                               cfg.DATA_MAX_SCALE_FACTOR,
-                               cfg.DATA_SHORT_EDGE_LEN),
-                tr.BalancedRandomCrop(cfg.DATA_RANDOMCROP,
-                                      max_obj_num=cfg.MODEL_MAX_OBJ_NUM),
-                tr.RandomColorJitter(),
-                tr.RandomGrayScale(),
-                tr.RandomGaussianBlur(),
-                tr.RandomHorizontalFlip(cfg.DATA_RANDOMFLIP),
-                tr.Resize(cfg.DATA_RANDOMCROP, use_padding=True),
-                tr.ToTensor()
-            ])
+        if cfg.TRAIN_PANO:
+            crop_transform = tr.BalancedRandomCrop_Pano(cfg.DATA_RANDOMCROP,
+                                  max_stuff_num=cfg.MODEL_MAX_STUFF_NUM,
+                                  max_thing_num=cfg.MODEL_MAX_THING_NUM)
         else:
-            assert NotImplementedError
+            crop_transform = tr.BalancedRandomCrop(cfg.DATA_RANDOMCROP)
+        composed_transforms = transforms.Compose([
+            tr.RandomScale(cfg.DATA_MIN_SCALE_FACTOR,
+                           cfg.DATA_MAX_SCALE_FACTOR, cfg.DATA_SHORT_EDGE_LEN),
+            crop_transform,
+            tr.RandomColorJitter(prob=cfg.DATA_RANDOM_COLOR_JITTER),
+            tr.RandomGrayScale(prob=cfg.DATA_RANDOM_GRAYSCALE),
+            tr.RandomGaussianBlur(prob=cfg.DATA_RANDOM_GAUSSIAN_BLUR),
+            tr.RandomHorizontalFlip(cfg.DATA_RANDOMFLIP),
+            tr.Resize(cfg.DATA_RANDOMCROP, use_padding=True),
+            tr.ThinPlaneSpline(prob=cfg.DATA_TPS_PROB,scale=cfg.DATA_TPS_SCALE),
+            tr.ToTensor()
+        ])
 
         train_datasets = []
         if 'static' in cfg.DATASETS:
@@ -296,9 +273,23 @@ class Trainer(object):
                 seq_len=cfg.DATA_SEQ_LEN,
                 merge_prob=cfg.DATA_DYNAMIC_MERGE_PROB,
                 max_obj_n=cfg.MODEL_MAX_OBJ_NUM,
-                aug_type=cfg.TRAIN_AUG_TYPE)
+                strong_aug=cfg.DATA_PRE_STRONG_AUG,
+                tps_prob=cfg.DATA_TPS_PROB,
+                tps_scale=cfg.DATA_TPS_SCALE)
             train_datasets.append(pretrain_vos_dataset)
             self.enable_prev_frame = False
+        
+        if 'bl30k' in cfg.DATASETS:
+            train_bl30k_dataset = BL30K_Train(
+                root=cfg.DIR_BL30K,
+                transform=composed_transforms,
+                seq_len=cfg.DATA_SEQ_LEN,
+                rand_gap=cfg.DATA_RANDOM_GAP_BL30K,
+                rand_reverse=cfg.DATA_RANDOM_REVERSE_SEQ,
+                merge_prob=cfg.DATA_DYNAMIC_MERGE_PROB_BL30K,
+                enable_prev_frame=self.enable_prev_frame,
+                max_obj_n=cfg.MODEL_MAX_OBJ_NUM)
+            train_datasets.append(train_bl30k_dataset)
 
         if 'davis2017' in cfg.DATASETS:
             train_davis_dataset = DAVIS2017_Train(
@@ -323,8 +314,27 @@ class Trainer(object):
                 rand_reverse=cfg.DATA_RANDOM_REVERSE_SEQ,
                 merge_prob=cfg.DATA_DYNAMIC_MERGE_PROB,
                 enable_prev_frame=self.enable_prev_frame,
-                max_obj_n=cfg.MODEL_MAX_OBJ_NUM)
+                max_obj_n=cfg.MODEL_MAX_OBJ_NUM,
+                balance_sample=cfg.DATA_YTB_BALANCE_SAMPLE,
+                balance_ratio=cfg.DATA_YTB_BALANCE_RATIO,
+                use_vosp=cfg.DATA_YTB_USE_VOSP,
+                repeat=cfg.DATA_YTB_REPEAT)
             train_datasets.append(train_ytb_dataset)
+        
+        if 'viposeg' in cfg.DATASETS:
+            train_vip_dataset = VIPOSeg_Train(
+                root=cfg.DIR_VIP,
+                transform=composed_transforms,
+                seq_len=cfg.DATA_SEQ_LEN,
+                rand_gap=cfg.DATA_RANDOM_GAP_VIP,
+                rand_reverse=cfg.DATA_RANDOM_REVERSE_SEQ,
+                merge_prob=cfg.DATA_DYNAMIC_MERGE_PROB_VIP,
+                enable_prev_frame=self.enable_prev_frame,
+                train_pano=cfg.TRAIN_PANO,
+                max_stuff_num=cfg.MODEL_MAX_STUFF_NUM,
+                max_thing_num=cfg.MODEL_MAX_THING_NUM,
+                )
+            train_datasets.append(train_vip_dataset)
 
         if 'test' in cfg.DATASETS:
             test_dataset = TEST(transform=composed_transforms,
@@ -340,16 +350,17 @@ class Trainer(object):
             exit(0)
 
         self.train_sampler = torch.utils.data.distributed.DistributedSampler(
-            train_dataset) if self.cfg.DIST_ENABLE else None
+            train_dataset)
         self.train_loader = DataLoader(train_dataset,
                                        batch_size=int(cfg.TRAIN_BATCH_SIZE /
                                                       cfg.TRAIN_GPUS),
-                                       shuffle=False if self.cfg.DIST_ENABLE else True,
+                                       shuffle=False,
                                        num_workers=cfg.DATA_WORKERS,
                                        pin_memory=True,
                                        sampler=self.train_sampler,
                                        drop_last=True,
-                                       prefetch_factor=4)
+                                       prefetch_factor=4,
+                                       collate_fn=custom_collate)
 
         self.print_log('Done!')
 
@@ -389,8 +400,7 @@ class Trainer(object):
         self.print_log('Start training:')
         model.train()
         while step < cfg.TRAIN_TOTAL_STEPS:
-            if self.cfg.DIST_ENABLE:
-                train_sampler.set_epoch(epoch)
+            train_sampler.set_epoch(epoch)
             epoch += 1
             last_time = time.time()
             for frame_idx, sample in enumerate(train_loader):
@@ -430,6 +440,11 @@ class Trainer(object):
                 prev_labels = sample['prev_label']
                 curr_labels = sample['curr_label']
                 obj_nums = sample['meta']['obj_num']
+                if self.cfg.TRAIN_PANO:
+                    obj_mapping = sample['meta']['obj_mapping']
+                else:
+                    obj_nums = list(obj_nums)
+                    obj_nums = [int(obj_num) for obj_num in obj_nums]
                 bs, _, h, w = curr_imgs[0].size()
 
                 ref_imgs = ref_imgs.cuda(self.gpu, non_blocking=True)
@@ -444,8 +459,6 @@ class Trainer(object):
                     curr_label.cuda(self.gpu, non_blocking=True)
                     for curr_label in curr_labels
                 ]
-                obj_nums = list(obj_nums)
-                obj_nums = [int(obj_num) for obj_num in obj_nums]
 
                 batch_size = ref_imgs.size(0)
 
@@ -459,36 +472,32 @@ class Trainer(object):
 
                 if self.enable_amp:
                     with torch.cuda.amp.autocast(enabled=True):
-                        
+
                         loss, all_pred, all_loss, boards = model(
                             all_frames,
                             all_labels,
                             batch_size,
                             use_prev_pred=use_prev_pred,
-                            obj_nums=obj_nums,
+                            obj_nums=[obj_nums,obj_mapping] if self.cfg.TRAIN_PANO else obj_nums,
                             step=step,
                             tf_board=tf_board,
                             enable_prev_frame=self.enable_prev_frame,
                             use_prev_prob=use_prev_prob)
                         loss = torch.mean(loss)
-                        
-                    start = time.time()
+
                     self.scaler.scale(loss).backward()
-                    end = time.time()
-                    print(end-start)
                     self.scaler.unscale_(optimizer)
                     torch.nn.utils.clip_grad_norm_(model.parameters(),
                                                    cfg.TRAIN_CLIP_GRAD_NORM)
                     self.scaler.step(optimizer)
                     self.scaler.update()
-                    
                 else:
                     loss, all_pred, all_loss, boards = model(
                         all_frames,
                         all_labels,
                         ref_imgs.size(0),
                         use_prev_pred=use_prev_pred,
-                        obj_nums=obj_nums,
+                        obj_nums=[obj_nums,obj_mapping] if self.cfg.TRAIN_PANO else obj_nums,
                         step=step,
                         tf_board=tf_board,
                         enable_prev_frame=self.enable_prev_frame,
@@ -499,18 +508,18 @@ class Trainer(object):
                                                    cfg.TRAIN_CLIP_GRAD_NORM)
                     loss.backward()
                     optimizer.step()
-
+                if self.cfg.TRAIN_PANO:
+                    obj_nums = [obj[0]+obj[1]-1 for obj in obj_nums]
                 for idx in range(seq_len):
                     now_pred = all_pred[idx].detach()
                     now_label = all_labels[idx * bs:(idx + 1) * bs].detach()
                     now_loss = torch.mean(all_loss[idx].detach())
                     now_iou = pytorch_iou(now_pred.unsqueeze(1), now_label,
                                           obj_nums) * 100
-                    if self.cfg.DIST_ENABLE:
-                        dist.all_reduce(now_loss)
-                        dist.all_reduce(now_iou)
-                        now_loss /= self.gpu_num
-                        now_iou /= self.gpu_num
+                    dist.all_reduce(now_loss)
+                    dist.all_reduce(now_iou)
+                    now_loss /= self.gpu_num
+                    now_iou /= self.gpu_num
                     if self.rank == 0:
                         running_losses[idx].update(now_loss.item())
                         running_ious[idx].update(now_iou.item())
@@ -565,8 +574,6 @@ class Trainer(object):
                                  step,
                                  cfg.DIR_CKPT,
                                  cfg.TRAIN_MAX_KEEP_CKPT,
-                                 backup_dir='./backup/{}/{}/ckpt'.format(
-                                     cfg.EXP_NAME, cfg.STAGE_NAME),
                                  scaler=self.scaler)
                     try:
                         torch.cuda.empty_cache()
@@ -575,15 +582,23 @@ class Trainer(object):
                         # Copy EMA parameters to model
                         self.ema.copy_to(self.ema_params)
                         # Save EMA model
-                        save_network(
-                            self.model,
-                            optimizer,
-                            step,
-                            self.ema_dir,
-                            cfg.TRAIN_MAX_KEEP_CKPT,
-                            backup_dir='./backup/{}/{}/ema_ckpt'.format(
-                                cfg.EXP_NAME, cfg.STAGE_NAME),
-                            scaler=self.scaler)
+                        save_network(self.model,
+                                     optimizer,
+                                     step,
+                                     self.ema_dir,
+                                     cfg.TRAIN_MAX_KEEP_CKPT,
+                                     backup_dir='./saved_ema_models',
+                                     scaler=self.scaler)
+                        if step % cfg.TRAIN_SAVE_MED_STEP == 0 and \
+                            step > cfg.TRAIN_START_SAVE_MED_RATIO * max_itr:
+                            # here requires step % cfg.TRAIN_SAVE_STEP too!
+                            save_network(self.model,
+                                        optimizer,
+                                        step,
+                                        self.med_dir,
+                                        None,
+                                        backup_dir='./saved_ema_models',
+                                        scaler=self.scaler)
                         # Restore original parameters to resume training later
                         self.ema.restore(self.ema_params)
                     except Exception as inst:
@@ -662,21 +677,21 @@ class Trainer(object):
                                              running_iou.avg, step)
 
                 self.tblogger.add_scalar('LR', now_lr, step)
-                self.tblogger.add_image('Ref/Image', show_ref_img, step)
-                self.tblogger.add_image('Ref/GT', show_ref_gtf, step)
+                # self.tblogger.add_image('Ref/Image', show_ref_img, step)
+                # self.tblogger.add_image('Ref/GT', show_ref_gtf, step)
 
-                self.tblogger.add_image('Prev/Image', show_prev_img, step)
-                self.tblogger.add_image('Prev/GT', show_prev_gtf, step)
+                # self.tblogger.add_image('Prev/Image', show_prev_img, step)
+                # self.tblogger.add_image('Prev/GT', show_prev_gtf, step)
 
-                self.tblogger.add_image('Curr/Image_GT', show_curr_img, step)
-                self.tblogger.add_image('Curr/Image_Pred', show_img_pred, step)
+                # self.tblogger.add_image('Curr/Image_GT', show_curr_img, step)
+                # self.tblogger.add_image('Curr/Image_Pred', show_img_pred, step)
 
-                self.tblogger.add_image('Curr/Mask_GT', show_gtf, step)
-                self.tblogger.add_image('Curr/Mask_Pred', show_preds_sf, step)
+                # self.tblogger.add_image('Curr/Mask_GT', show_gtf, step)
+                # self.tblogger.add_image('Curr/Mask_Pred', show_preds_sf, step)
 
-                for key in boards['image'].keys():
-                    tmp = boards['image'][key].cpu().numpy()
-                    self.tblogger.add_image('S{}/' + key, tmp, step)
+                # for key in boards['image'].keys():
+                #     tmp = boards['image'][key].cpu().numpy()
+                #     self.tblogger.add_image('S{}/' + key, tmp, step)
                 for key in boards['scalar'].keys():
                     tmp = boards['scalar'][key].cpu().numpy()
                     self.tblogger.add_scalar('S{}/' + key, tmp, step)

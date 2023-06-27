@@ -2,11 +2,10 @@ import random
 import cv2
 import numpy as np
 from PIL import Image
-
 import torch
 import torchvision.transforms as TF
 import dataloaders.image_transforms as IT
-
+import dataloaders.tps as tps
 cv2.setNumThreads(0)
 
 
@@ -117,7 +116,6 @@ class Resize(object):
             sample[elem] = tmp
 
         return sample
-
 
 class BalancedRandomCrop(object):
     """Crop randomly the image in a sample.
@@ -230,6 +228,149 @@ class BalancedRandomCrop(object):
         sample['meta']['obj_num'] = obj_num
 
         return sample
+    
+class BalancedRandomCrop_Pano(object):
+    """Crop randomly the image in a sample.
+
+    Args:
+        output_size (tuple or int): Desired output size. If int, square crop
+            is made.
+    """
+    def __init__(self,
+                 output_size,
+                 max_step=5,
+                 max_stuff_num=6,
+                 max_thing_num=10,
+                 min_obj_pixel_num=100):
+        assert isinstance(output_size, (int, tuple))
+        if isinstance(output_size, int):
+            self.output_size = (output_size, output_size)
+        else:
+            assert len(output_size) == 2
+            self.output_size = output_size
+        self.max_step = max_step
+        self.min_obj_pixel_num = min_obj_pixel_num
+        self.max_thing_num = max_thing_num
+        self.max_stuff_num = max_stuff_num
+
+    def __call__(self, sample):
+
+        image = sample['prev_img']
+        h, w = image.shape[:2]
+        new_h, new_w = self.output_size
+        new_h = h if new_h >= h else new_h
+        new_w = w if new_w >= w else new_w
+        ref_label = sample["ref_label"]
+        prev_label = sample["prev_label"]
+        curr_label = sample["curr_label"]
+        obj_mapping = sample["meta"]["obj_mapping"]
+        
+        # try random crop
+        top = np.random.randint(0, h - new_h + 1)
+        left = np.random.randint(0, w - new_w + 1)
+        after_crop = []
+        contains = []
+        for elem in ([ref_label, prev_label] + curr_label):
+            tmp = elem[top:top + new_h, left:left + new_w]
+            contains.append(np.unique(tmp))
+            after_crop.append(tmp)
+
+        all_obj = list(np.sort(contains[0]))
+
+        # collect small obj
+        new_all_obj = []
+        small_obj = []
+        for obj_id in all_obj:
+            after_crop_pixels = np.sum(after_crop[0] == obj_id)
+            if after_crop_pixels > self.min_obj_pixel_num:
+                new_all_obj.append(obj_id)
+            else:
+                small_obj.append(obj_id)
+        # remove small obj from labels
+        for elem in ([ref_label, prev_label] + curr_label):
+            for obj in small_obj:
+                elem[elem==obj] = 0
+        # add bk in new obj
+        if len(small_obj)>0 and (0 not in new_all_obj):
+            new_all_obj = [0] + new_all_obj
+            obj_mapping[0] = [0,0]
+
+        # check obj num, selection of stuff must include background
+        new_stuff_obj = []
+        new_thing_obj = []
+        for obj in new_all_obj:
+            if obj_mapping[obj][0] == 0:
+                new_stuff_obj.append(obj)
+            elif obj_mapping[obj][0] == 1:
+                new_thing_obj.append(obj)
+        if len(new_stuff_obj) > self.max_stuff_num:
+            if 0 in new_stuff_obj:
+                new_stuff_obj.remove(0)
+                random.shuffle(new_stuff_obj)
+                new_stuff_obj = [0] + new_stuff_obj[:self.max_stuff_num-1]
+            else:
+                random.shuffle(new_stuff_obj)
+                new_stuff_obj = new_stuff_obj[:self.max_stuff_num-1]
+        if len(new_thing_obj) > self.max_thing_num:
+            random.shuffle(new_thing_obj)
+            new_thing_obj = new_thing_obj[:self.max_thing_num]
+        all_obj = sorted(new_stuff_obj)  + sorted(new_thing_obj)
+
+        
+        
+        # update labels
+        post_process = []
+        for elem in after_crop:
+            new_elem = elem * 0
+            for idx in range(len(all_obj)):
+                obj_id = all_obj[idx]
+                if obj_id == 0:
+                    continue
+                # regenerate mask by idx
+                mask = elem == obj_id
+                new_elem += (mask * idx).astype(np.uint8)
+            post_process.append(new_elem.astype(np.uint8))
+        
+        sample["ref_label"] = post_process[0]
+        sample["prev_label"] = post_process[1]
+        curr_len = len(sample["curr_img"])
+        sample["curr_label"] = []
+        for idx in range(curr_len):
+            sample["curr_label"].append(post_process[idx + 2])
+        
+        # update meta
+        new_obj_mapping = {}
+        thing_idx = 0
+        stuff_idx = 0
+        for idx in range(len(all_obj)):
+            obj_id = all_obj[idx]
+            if obj_mapping[obj_id][0] == 0:
+                new_obj_mapping[idx] = [0,stuff_idx]
+                stuff_idx += 1
+            elif obj_mapping[obj_id][0] == 1:
+                new_obj_mapping[idx] = [1,thing_idx]
+                thing_idx += 1
+        obj_num = [len(new_stuff_obj),len(new_thing_obj)]
+        sample['meta']['obj_num'] = obj_num
+        sample["meta"]["obj_mapping"] = new_obj_mapping
+        
+        # update images
+        for elem in sample.keys():
+            if 'meta' in elem or 'label' in elem:
+                continue
+            if elem == 'curr_img':
+                new_tmp = []
+                for tmp_ in sample[elem]:
+                    tmp_ = tmp_[top:top + new_h, left:left + new_w]
+                    new_tmp.append(tmp_)
+                sample[elem] = new_tmp
+            else:
+                tmp = sample[elem]
+                tmp = tmp[top:top + new_h, left:left + new_w]
+                sample[elem] = tmp
+
+
+        return sample
 
 
 class RandomScale(object):
@@ -246,7 +387,7 @@ class RandomScale(object):
         # Fixed range of scales
         sc = np.random.uniform(self.min_scale, self.max_scale)
         # Align short edge
-        if self.short_edge is not None:
+        if not (self.short_edge is None):
             image = sample['prev_img']
             h, w = image.shape[:2]
             if h > w:
@@ -380,6 +521,7 @@ class RandomScaleV2(object):
 
         return h, w
 
+
 class RestrictSize(object):
     """Randomly resize the image and the ground truth to specified scales.
     Args:
@@ -465,33 +607,8 @@ class RandomHorizontalFlip(object):
         return sample
 
 
-class RandomVerticalFlip(object):
-    """Vertically flip the given image and ground truth randomly with a probability of 0.5."""
-    def __init__(self, prob=0.3):
-        self.p = prob
-
-    def __call__(self, sample):
-
-        if random.random() < self.p:
-            for elem in sample.keys():
-                if 'meta' in elem:
-                    continue
-                if elem == 'curr_img' or elem == 'curr_label':
-                    new_tmp = []
-                    for tmp_ in sample[elem]:
-                        tmp_ = cv2.flip(tmp_, flipCode=0)
-                        new_tmp.append(tmp_)
-                    sample[elem] = new_tmp
-                else:
-                    tmp = sample[elem]
-                    tmp = cv2.flip(tmp, flipCode=0)
-                    sample[elem] = tmp
-
-        return sample
-
-
 class RandomGaussianBlur(object):
-    def __init__(self, prob=0.3, sigma=[0.1, 2.]):
+    def __init__(self, prob=0.0, sigma=[0.1, 2.]):
         self.aug = TF.RandomApply([IT.GaussianBlur(sigma)], p=prob)
 
     def __call__(self, sample):
@@ -519,13 +636,13 @@ class RandomGaussianBlur(object):
 
 
 class RandomGrayScale(RandomGaussianBlur):
-    def __init__(self, prob=0.2):
+    def __init__(self, prob=0.0):
         self.aug = TF.RandomGrayscale(p=prob)
 
 
 class RandomColorJitter(RandomGaussianBlur):
     def __init__(self,
-                 prob=0.8,
+                 prob=0.0,
                  brightness=0.4,
                  contrast=0.4,
                  saturation=0.2,
@@ -533,6 +650,26 @@ class RandomColorJitter(RandomGaussianBlur):
         self.aug = TF.RandomApply(
             [TF.ColorJitter(brightness, contrast, saturation, hue)], p=prob)
 
+class ThinPlaneSpline(object):
+    def __init__(self,prob=0.0,scale=0.02) -> None:
+        self.prob = prob
+        self.scale = scale
+        pass
+    def __call__(self, sample):
+        if np.random.rand() < self.prob:
+            # cv2.imwrite('rlb_non.png',sample['ref_label'])
+            # cv2.imwrite('rimg_non.jpg',sample['ref_img'])
+            sample['ref_img'],sample['ref_label'] = tps.random_tps_warp(sample['ref_img'],sample['ref_label'],
+                                                        self.scale,return_array=True)
+            # cv2.imwrite('rlb_tps.png',sample['ref_label'])
+            # cv2.imwrite('rimg_tps.jpg',sample['ref_img'])
+            sample['prev_img'],sample['prev_label'] = tps.random_tps_warp(sample['prev_img'],sample['prev_label'],
+                                                        self.scale,return_array=True)
+            for i in range(len(sample['curr_img'])):
+                sample['curr_img'][i],sample['curr_label'][i] = tps.random_tps_warp(sample['curr_img'][i],sample['curr_label'][i],
+                                                                    self.scale,return_array=True)
+        
+        return sample
 
 class SubtractMeanImage(object):
     def __init__(self, mean, change_channels=False):
@@ -596,6 +733,7 @@ class MultiRestrictSize(object):
                  max_short_edge=None,
                  max_long_edge=800,
                  flip=False,
+                 inplace_flip=False,
                  multi_scale=[1.3],
                  align_corners=True,
                  max_stride=16):
@@ -603,6 +741,7 @@ class MultiRestrictSize(object):
         self.max_long_edge = max_long_edge
         self.multi_scale = multi_scale
         self.flip = flip
+        self.inplace_flip = inplace_flip
         self.align_corners = align_corners
         self.max_stride = max_stride
 
@@ -675,17 +814,25 @@ class MultiRestrictSize(object):
                 samples.append(new_sample)
 
             if self.flip:
-                now_sample = samples[-1]
-                new_sample = {}
-                for elem in now_sample.keys():
-                    if 'meta' in elem:
-                        new_sample[elem] = now_sample[elem].copy()
-                        new_sample[elem]['flip'] = True
-                        continue
-                    tmp = now_sample[elem]
-                    tmp = tmp[:, ::-1].copy()
-                    new_sample[elem] = tmp
-                samples.append(new_sample)
+                if self.inplace_flip:
+                    for elem in samples[-1].keys():
+                        if 'meta' in elem:
+                            samples[-1][elem]['flip'] = True
+                            continue
+                        tmp = samples[-1][elem][:, ::-1].copy()
+                        samples[-1][elem] = tmp
+                else:
+                    now_sample = samples[-1]
+                    new_sample = {}
+                    for elem in now_sample.keys():
+                        if 'meta' in elem:
+                            new_sample[elem] = now_sample[elem].copy()
+                            new_sample[elem]['flip'] = True
+                            continue
+                        tmp = now_sample[elem]
+                        tmp = tmp[:, ::-1].copy()
+                        new_sample[elem] = tmp
+                    samples.append(new_sample)
 
         return samples
 

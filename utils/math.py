@@ -13,6 +13,15 @@ def generate_permute_matrix(dim, num, keep_first=True, gpu_id=0):
         all_matrix.append(random_matrix)
     return torch.stack(all_matrix, dim=0)
 
+def generate_rearrange_matrix(dim,num,rearrange,gpu_id=0):
+    all_matrix = []
+    for b in range(num):
+        permute_matrix = torch.zeros((dim,dim),device=torch.device('cuda', gpu_id))
+        for c in range(dim):
+            r = rearrange[b].index(c)
+            permute_matrix[r][c] = 1
+        all_matrix.append(permute_matrix)
+    return torch.stack(all_matrix,dim=0)
 
 def truncated_normal_(tensor, mean=0, std=.02):
     size = tensor.shape

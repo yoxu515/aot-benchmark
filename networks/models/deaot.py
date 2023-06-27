@@ -21,7 +21,8 @@ class DeAOT(AOT):
             droppath_lst=cfg.TRAIN_LSTT_DROPPATH_LST,
             droppath_scaling=cfg.TRAIN_LSTT_DROPPATH_SCALING,
             intermediate_norm=cfg.MODEL_DECODER_INTERMEDIATE_LSTT,
-            return_intermediate=True)
+            return_intermediate=True,
+            topk=cfg.TEST_TOP_K)
 
         decoder_indim = cfg.MODEL_ENCODER_EMBEDDING_DIM * \
             (cfg.MODEL_LSTT_NUM * 2 +
