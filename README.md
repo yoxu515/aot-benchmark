@@ -147,7 +147,7 @@ Please consider citing the related paper(s) in your publications if it helps you
 }
 @article{yang2021aost,
   title={Scalable Video Object Segmentation with Identification Mechanism},
-  author={Yang, Zongxin and Miao, Jiaxu and Wang, Xiaohan and Wei, Yunchao and Wang, Wenguan and Yang, Yi},
+  author={Yang, Zongxin and Wang, Xiaohan and Miao, Jiaxu and Wei, Yunchao and Wang, Wenguan and Yang, Yi},
   journal={arXiv preprint arXiv:2203.11442},
   year={2023}
 }
