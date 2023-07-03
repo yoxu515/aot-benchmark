@@ -146,10 +146,10 @@ Please consider citing the related paper(s) in your publications if it helps you
   year={2022}
 }
 @article{yang2021aost,
-  title={Scalable Multi-object Identification for Video Object Segmentation},
-  author={Yang, Zongxin and Miao, Jiaxu and Wang, Xiaohan and Wei, Yunchao and Yang, Yi},
+  title={Scalable Video Object Segmentation with Identification Mechanism},
+  author={Yang, Zongxin and Miao, Jiaxu and Wang, Xiaohan and Wei, Yunchao and Wang, Wenguan and Yang, Yi},
   journal={arXiv preprint arXiv:2203.11442},
-  year={2022}
+  year={2023}
 }
 @inproceedings{yang2021aot,
   title={Associating Objects with Transformers for Video Object Segmentation},
