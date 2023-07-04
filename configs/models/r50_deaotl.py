@@ -7,6 +7,7 @@ class ModelConfig(DefaultModelConfig):
         self.MODEL_NAME = 'R50_DeAOTL'
 
         self.MODEL_ENCODER = 'resnet50'
+        self.MODEL_ENCODER_PRETRAIN = './pretrain_models/resnet50-0676ba61.pth'  # https://download.pytorch.org/models/resnet50-0676ba61.pth
         self.MODEL_ENCODER_DIM = [256, 512, 1024, 1024]  # 4x, 8x, 16x, 16x
 
         self.MODEL_LSTT_NUM = 3
