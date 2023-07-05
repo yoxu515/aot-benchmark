@@ -247,13 +247,13 @@ class Trainer(object):
                     cfg.PRETRAIN_MODEL))
             else:
                 model_encoder, removed_dict = load_network(
-                    self.model_encoder, cfg.PRETRAIN_MODEL, self.gpu)
+                    self.model_encoder, cfg.MODEL_ENCODER_PRETRAIN, self.gpu)
                 if len(removed_dict) > 0:
                     self.print_log('Remove {} from pretrained model.'.format(
                         removed_dict))
                 self.print_log(
                     'Load pretrained backbone model from {}.'.format(
-                        cfg.PRETRAIN_MODEL))
+                        cfg.MODEL_ENCODER_PRETRAIN))
 
     def prepare_dataset(self):
         cfg = self.cfg
