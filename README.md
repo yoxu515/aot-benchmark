@@ -143,17 +143,23 @@ Waiting
 ## Citations
 Please consider citing the related paper(s) in your publications if it helps your research.
 ```
+@article{yang2021aost,
+  title={Scalable Video Object Segmentation with Identification Mechanism},
+  author={Yang, Zongxin and Miao, Jiaxu and Wei, Yunchao and Wang, Wenguan and Wang, Xiaohan and Yang, Yi},
+  journal={TPAMI},
+  year={2024}
+}
+@inproceedings{xu2023video,
+  title={Video object segmentation in panoptic wild scenes},
+  author={Xu, Yuanyou and Yang, Zongxin and Yang, Yi},
+  booktitle={IJCAI},
+  year={2023}
+}
 @inproceedings{yang2022deaot,
   title={Decoupling Features in Hierarchical Propagation for Video Object Segmentation},
   author={Yang, Zongxin and Yang, Yi},
   booktitle={Advances in Neural Information Processing Systems (NeurIPS)},
   year={2022}
-}
-@article{yang2021aost,
-  title={Scalable Video Object Segmentation with Identification Mechanism},
-  author={Yang, Zongxin and Wang, Xiaohan and Miao, Jiaxu and Wei, Yunchao and Wang, Wenguan and Yang, Yi},
-  journal={arXiv preprint arXiv:2203.11442},
-  year={2023}
 }
 @inproceedings{yang2021aot,
   title={Associating Objects with Transformers for Video Object Segmentation},
