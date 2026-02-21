@@ -50,8 +50,8 @@ General examples (Messi and Kobe):
      ```bash
      git clone https://github.com/ClementPinard/Pytorch-Correlation-extension.git
      cd Pytorch-Correlation-extension
-     python setup.py install
-     cd -
+     pip install .
+     cd ..
      ```
 
 Optional:
