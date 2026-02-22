@@ -46,12 +46,12 @@ General examples (Messi and Kobe):
    * pytorch >= 1.7.0 and torchvision
    * opencv-python
    * Pillow
-   * Pytorch Correlation. Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension) instead of using `pip`:
+   * Pytorch Correlation. Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension):
      ```bash
      git clone https://github.com/ClementPinard/Pytorch-Correlation-extension.git
      cd Pytorch-Correlation-extension
-     python setup.py install
-     cd -
+     pip install .
+     cd ..
      ```
 
 Optional:
