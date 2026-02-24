@@ -4,9 +4,15 @@ import shutil
 import numpy as np
 
 
-def load_network_and_optimizer(net, opt, pretrained_dir, gpu, scaler=None):
-    pretrained = torch.load(pretrained_dir,
-                            map_location=torch.device("cuda:" + str(gpu)))
+def get_device(gpu=None):
+    if torch.cuda.is_available():
+         return torch.device(f"cuda:{gpu}" if gpu is not None else "cuda")
+    return torch.device("cpu") 
+
+
+def load_network_and_optimizer(net, opt, pretrained_dir, gpu=None, scaler=None):
+    device = get_device(gpu)
+    pretrained = torch.load(pretrained_dir, map_location=device)
     pretrained_dict = pretrained['state_dict']
     model_dict = net.state_dict()
     pretrained_dict_update = {}
@@ -24,13 +30,14 @@ def load_network_and_optimizer(net, opt, pretrained_dir, gpu, scaler=None):
     opt.load_state_dict(pretrained['optimizer'])
     if scaler is not None and 'scaler' in pretrained.keys():
         scaler.load_state_dict(pretrained['scaler'])
-    del (pretrained)
-    return net.cuda(gpu), opt, pretrained_dict_remove
+    del pretrained
+    return net.to(device), opt, pretrained_dict_remove
 
 
-def load_network_and_optimizer_v2(net, opt, pretrained_dir, gpu, scaler=None):
-    pretrained = torch.load(pretrained_dir,
-                            map_location=torch.device("cuda:" + str(gpu)))
+def load_network_and_optimizer_v2(net, opt, pretrained_dir, gpu=None, scaler=None):
+    device = get_device(gpu)
+    pretrained = torch.load(pretrained_dir, map_location=device)
+
     # load model
     pretrained_dict = pretrained['state_dict']
     model_dict = net.state_dict()
@@ -69,13 +76,13 @@ def load_network_and_optimizer_v2(net, opt, pretrained_dir, gpu, scaler=None):
     # load scaler
     if scaler is not None and 'scaler' in pretrained.keys():
         scaler.load_state_dict(pretrained['scaler'])
-    del (pretrained)
-    return net.cuda(gpu), opt, pretrained_dict_remove
+    del pretrained
+    return net.to(device), opt, pretrained_dict_remove
 
 
-def load_network(net, pretrained_dir, gpu):
-    pretrained = torch.load(pretrained_dir,
-                            map_location=torch.device("cuda:" + str(gpu)))
+def load_network(net, pretrained_dir, gpu=None):
+    device = get_device(gpu)
+    pretrained = torch.load(pretrained_dir, map_location=device)
     if 'state_dict' in pretrained.keys():
         pretrained_dict = pretrained['state_dict']
     elif 'model' in pretrained.keys():
@@ -95,8 +102,8 @@ def load_network(net, pretrained_dir, gpu):
             pretrained_dict_remove.append(k)
     model_dict.update(pretrained_dict_update)
     net.load_state_dict(model_dict)
-    del (pretrained)
-    return net.cuda(gpu), pretrained_dict_remove
+    del pretrained
+    return net.to(device), pretrained_dict_remove
 
 
 def save_network(net,
@@ -113,14 +120,14 @@ def save_network(net,
     try:
         if not os.path.exists(save_path):
             os.makedirs(save_path)
-        save_file = 'save_step_%s.pth' % (step)
+        save_file = 'save_step_%s.pth' % step
         save_dir = os.path.join(save_path, save_file)
         torch.save(ckpt, save_dir)
-    except:
+    except Exception:
         save_path = backup_dir
         if not os.path.exists(save_path):
             os.makedirs(save_path)
-        save_file = 'save_step_%s.pth' % (step)
+        save_file = 'save_step_%s.pth' % step
         save_dir = os.path.join(save_path, save_file)
         torch.save(ckpt, save_dir)
 
@@ -132,8 +139,8 @@ def save_network(net,
             all_step.append(step)
         all_step = list(np.sort(all_step))[:-max_keep]
         for step in all_step:
-            ckpt_path = os.path.join(save_path, 'save_step_%s.pth' % (step))
-            os.system('rm {}'.format(ckpt_path))
+            ckpt_path = os.path.join(save_path, 'save_step_%s.pth' % step)
+            os.remove(ckpt_path)  # safer than os.system('rm ...')
 
 
 def cp_ckpt(remote_dir="data_wd/youtube_vos_jobs/result", curr_dir="backup"):
@@ -154,10 +161,10 @@ def cp_ckpt(remote_dir="data_wd/youtube_vos_jobs/result", curr_dir="backup"):
                     remote_ckpt_path = os.path.join(remote_dir, exp, stage,
                                                     final, ckpt)
                     if os.path.exists(remote_ckpt_path):
-                        os.system('rm {}'.format(remote_ckpt_path))
+                        os.remove(remote_ckpt_path)  # safer than os.system
                     try:
                         shutil.copy(curr_ckpt_path, remote_ckpt_path)
-                        print("Copy {} to {}.".format(curr_ckpt_path,
-                                                      remote_ckpt_path))
-                    except OSError as Inst:
+                        print("Copy {} to {}.".format(curr_ckpt_path, remote_ckpt_path))
+                    except OSError as e:
+                        print(e)
                         return

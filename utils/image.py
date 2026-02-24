@@ -119,7 +119,7 @@ def shuffle_obj_mask(mask):
     for idx in range(bs):
         now_mask = mask[idx]
         random_matrix = torch.eye(obj_num, device=mask.device)
-        fg = random_matrix[1:][torch.randperm(obj_num - 1)]
+        fg = random_matrix[1:][torch.randperm(obj_num - 1, device=mask.device)]
         random_matrix = torch.cat([random_matrix[0:1], fg], dim=0)
         now_mask = torch.einsum('nm,nhw->mhw', random_matrix, now_mask)
         new_masks.append(now_mask)
