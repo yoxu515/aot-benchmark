@@ -12,7 +12,7 @@ def get_device(gpu=None):
 
 def load_network_and_optimizer(net, opt, pretrained_dir, gpu=None, scaler=None):
     device = get_device(gpu)
-    pretrained = torch.load(pretrained_dir, map_location=device)
+    pretrained = torch.load(pretrained_dir, map_location=device, weights_only= False)
     pretrained_dict = pretrained['state_dict']
     model_dict = net.state_dict()
     pretrained_dict_update = {}
@@ -36,7 +36,7 @@ def load_network_and_optimizer(net, opt, pretrained_dir, gpu=None, scaler=None):
 
 def load_network_and_optimizer_v2(net, opt, pretrained_dir, gpu=None, scaler=None):
     device = get_device(gpu)
-    pretrained = torch.load(pretrained_dir, map_location=device)
+    pretrained = torch.load(pretrained_dir, map_location=device, weights_only = False)
 
     # load model
     pretrained_dict = pretrained['state_dict']
@@ -82,7 +82,7 @@ def load_network_and_optimizer_v2(net, opt, pretrained_dir, gpu=None, scaler=Non
 
 def load_network(net, pretrained_dir, gpu=None):
     device = get_device(gpu)
-    pretrained = torch.load(pretrained_dir, map_location=device)
+    pretrained = torch.load(pretrained_dir, map_location=device, weights_only = False)
     if 'state_dict' in pretrained.keys():
         pretrained_dict = pretrained['state_dict']
     elif 'model' in pretrained.keys():
