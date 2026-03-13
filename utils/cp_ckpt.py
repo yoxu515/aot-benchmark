@@ -59,4 +59,3 @@ def cp_ckpt(remote_dir="data_wd/youtube_vos_jobs/result", curr_dir="backup"):
 
 if __name__ == "__main__":
     cp_ckpt()
-    
