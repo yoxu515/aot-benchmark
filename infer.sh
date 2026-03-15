@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-## Inference ##
+# Inference #
 
 stage="pre_ytb_dav"
 data_path="./datasets/Demo"
