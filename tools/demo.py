@@ -7,6 +7,7 @@ sys.path.append('..')
 
 import cv2
 from PIL import Image
+
 from skimage.morphology.binary import binary_dilation
 
 import numpy as np
