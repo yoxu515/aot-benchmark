@@ -472,7 +472,7 @@ class AOTEngine(nn.Module):
 
         if enable_id_shuffle:
             self.id_shuffle_matrix = generate_permute_matrix(
-                self.max_obj_num + 1, batch_size, gpu_id=self.gpu_id)
+                self.max_obj_num + 1, batch_size, gpu_id=self.gpu_id if torch.cuda.is_available() else None)
         else:
             self.id_shuffle_matrix = None
 
