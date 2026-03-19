@@ -1,9 +1,24 @@
 # AOT Series Frameworks in PyTorch
+
 <p>
-  <a href="LINK1"><img src="https://img.shields.io/badge/SOTA-Semi--Supervised%20VOS-brightgreen"/></a>
-  <a href="LINK2"><img src="https://img.shields.io/badge/SOTA-YouTube--VOS-blue"/></a>
-  <a href="LINK3"><img src="https://img.shields.io/badge/SOTA-DAVIS--2018-orange"/></a>
-  <a href="LINK4"><img src="https://img.shields.io/badge/SOTA-DAVIS--2017-yellow"/></a>
+  <a href="https://paperswithcode.com/sota/semi-supervised-video-object-segmentation-on-15?p=decoupling-features-in-hierarchical">
+    <img src="https://img.shields.io/badge/SOTA-Semi--Supervised%20VOS%20(DAVIS)-brightgreen"/>
+  </a>
+  <a href="https://paperswithcode.com/sota/video-object-segmentation-on-youtube-vos?p=associating-objects-with-scalable">
+    <img src="https://img.shields.io/badge/SOTA-YouTube--VOS-blue"/>
+  </a>
+  <a href="https://paperswithcode.com/sota/semi-supervised-video-object-segmentation-on-18?p=associating-objects-with-scalable">
+    <img src="https://img.shields.io/badge/SOTA-DAVIS--2018-orange"/>
+  </a>
+  <a href="https://paperswithcode.com/sota/semi-supervised-video-object-segmentation-on-1?p=associating-objects-with-scalable">
+    <img src="https://img.shields.io/badge/SOTA-DAVIS--2017-yellow"/>
+  </a>
+  <a href="https://paperswithcode.com/sota/visual-object-tracking-on-davis-2017?p=associating-objects-with-scalable">
+    <img src="https://img.shields.io/badge/SOTA-Tracking%20DAVIS--2017-red"/>
+  </a>
+  <a href="https://paperswithcode.com/sota/visual-object-tracking-on-davis-2016?p=associating-objects-with-scalable">
+    <img src="https://img.shields.io/badge/SOTA-Tracking%20DAVIS--2016-purple"/>
+  </a>
 </p>
 
 ## News
