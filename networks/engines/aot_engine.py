@@ -499,7 +499,7 @@ class AOTInferEngine(nn.Module):
         else:
             self.max_aot_obj_num = max_aot_obj_num
 
-        self.gpu_id = gpu_id
+        self.gpu_id = gpu_id if torch.cuda.is_available() else None
         self.long_term_mem_gap = long_term_mem_gap
         self.short_term_mem_skip = short_term_mem_skip
 
