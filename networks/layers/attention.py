@@ -381,11 +381,11 @@ class MultiheadLocalAttentionV2(nn.Module):
             ky, kx = torch.meshgrid([
                 torch.arange(0, pad_height, device=local_attn.device),
                 torch.arange(0, pad_width, device=local_attn.device)
-            ])
+            ],indexing='ij')
             qy, qx = torch.meshgrid([
                 torch.arange(0, height, device=local_attn.device),
                 torch.arange(0, width, device=local_attn.device)
-            ])
+            ],indexing='ij')
 
             offset_y = qy.reshape(-1, 1) - ky.reshape(1, -1) + self.max_dis
             offset_x = qx.reshape(-1, 1) - kx.reshape(1, -1) + self.max_dis
@@ -542,11 +542,11 @@ class MultiheadLocalAttentionV3(nn.Module):
             ky, kx = torch.meshgrid([
                 torch.arange(0, pad_height, device=device),
                 torch.arange(0, pad_width, device=device)
-            ])
+            ],indexing='ij')
             qy, qx = torch.meshgrid([
                 torch.arange(0, height, device=device),
                 torch.arange(0, width, device=device)
-            ])
+            ],indexing='ij')
 
             qy = qy.reshape(-1, 1)
             qx = qx.reshape(-1, 1)
@@ -865,11 +865,11 @@ class LocalGatedPropagation(nn.Module):
             ky, kx = torch.meshgrid([
                 torch.arange(0, pad_height, device=local_attn.device),
                 torch.arange(0, pad_width, device=local_attn.device)
-            ])
+            ],indexing='ij')
             qy, qx = torch.meshgrid([
                 torch.arange(0, height, device=local_attn.device),
                 torch.arange(0, width, device=local_attn.device)
-            ])
+            ],indexing='ij')
 
             offset_y = qy.reshape(-1, 1) - ky.reshape(1, -1) + self.max_dis
             offset_x = qx.reshape(-1, 1) - kx.reshape(1, -1) + self.max_dis

@@ -7,9 +7,7 @@ sys.path.append('..')
 
 import cv2
 from PIL import Image
-
-from skimage.morphology.binary import binary_dilation
-
+from skimage.morphology import dilation
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -77,6 +75,19 @@ _palette = [
 color_palette = np.array(_palette).reshape(-1, 3)
 
 
+def get_device(gpu_id: int) -> torch.device:
+    if torch.cuda.is_available():
+        return torch.device(f'cuda:{gpu_id}')
+    print('WARNING: CUDA not available, falling back to CPU. Expect slow inference.')
+    return torch.device('cpu')
+
+
+def to_device(tensor: torch.Tensor, device: torch.device, non_blocking: bool = False) -> torch.Tensor:
+    """Move tensor to device; non_blocking is only meaningful for CUDA."""
+    nb = non_blocking and device.type == 'cuda'
+    return tensor.to(device, non_blocking=nb)
+
+
 def overlay(image, mask, colors=[255, 0, 0], cscale=1, alpha=0.4):
     colors = np.atleast_2d(colors) * cscale
 
@@ -93,7 +104,7 @@ def overlay(image, mask, colors=[255, 0, 0], cscale=1, alpha=0.4):
         # Compose image
         im_overlay[binary_mask] = foreground[binary_mask]
 
-        countours = binary_dilation(binary_mask) ^ binary_mask
+        countours = dilation(binary_mask) ^ binary_mask
         im_overlay[countours, :] = 0
 
     return im_overlay.astype(image.dtype)
@@ -102,22 +113,28 @@ def overlay(image, mask, colors=[255, 0, 0], cscale=1, alpha=0.4):
 def demo(cfg):
     video_fps = 15
     gpu_id = cfg.TEST_GPU_ID
+    device = get_device(gpu_id)
 
     # Load pre-trained model
     print('Build AOT model.')
-    model = build_vos_model(cfg.MODEL_VOS, cfg).cuda(gpu_id)
+    if device.type == 'cuda':
+        model = build_vos_model(cfg.MODEL_VOS, cfg).cuda(gpu_id)
+    else:
+        model = build_vos_model(cfg.MODEL_VOS, cfg).to(device)
 
     print('Load checkpoint from {}'.format(cfg.TEST_CKPT_PATH))
-    model, _ = load_network(model, cfg.TEST_CKPT_PATH, gpu_id)
+    model, _ = load_network(model, cfg.TEST_CKPT_PATH, gpu_id if device.type == 'cuda' else -1)
 
     print('Build AOT engine.')
-    engine = build_engine(cfg.MODEL_ENGINE,
-                          phase='eval',
-                          aot_model=model,
-                          gpu_id=gpu_id,
-                          long_term_mem_gap=cfg.TEST_LONG_TERM_MEM_GAP)
+    engine = build_engine(
+        cfg.MODEL_ENGINE,
+        phase='eval',
+        aot_model=model,
+        gpu_id=gpu_id if device.type == 'cuda' else -1,
+        long_term_mem_gap=cfg.TEST_LONG_TERM_MEM_GAP,
+    )
 
-    # Prepare datasets for each sequence
+    # Prepare datasets
     transform = transforms.Compose([
         tr.MultiRestrictSize(cfg.TEST_MIN_SIZE, cfg.TEST_MAX_SIZE,
                              cfg.TEST_FLIP, cfg.TEST_MULTISCALE,
@@ -144,21 +161,23 @@ def demo(cfg):
     # Infer
     output_root = cfg.TEST_OUTPUT_PATH
     output_mask_root = os.path.join(output_root, 'pred_masks')
-    if not os.path.exists(output_mask_root):
-        os.makedirs(output_mask_root)
+    os.makedirs(output_mask_root, exist_ok=True)
 
     for seq_dataset in seq_datasets:
         seq_name = seq_dataset.seq_name
         image_seq_root = os.path.join(image_root, seq_name)
         output_mask_seq_root = os.path.join(output_mask_root, seq_name)
-        if not os.path.exists(output_mask_seq_root):
-            os.makedirs(output_mask_seq_root)
+        os.makedirs(output_mask_seq_root, exist_ok=True)
+
         print('Build a dataloader for sequence {}.'.format(seq_name))
-        seq_dataloader = DataLoader(seq_dataset,
-                                    batch_size=1,
-                                    shuffle=False,
-                                    num_workers=cfg.TEST_WORKERS,
-                                    pin_memory=True)
+        # pin_memory only helps with CUDA
+        seq_dataloader = DataLoader(
+            seq_dataset,
+            batch_size=1,
+            shuffle=False,
+            num_workers=cfg.TEST_WORKERS,
+            pin_memory=(device.type == 'cuda'),
+        )
 
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         output_video_path = os.path.join(
@@ -180,8 +199,7 @@ def demo(cfg):
                 obj_nums = [int(obj_num) for obj_num in obj_nums]
                 obj_idx = [int(_obj_idx) for _obj_idx in obj_idx]
 
-                current_img = sample['current_img']
-                current_img = current_img.cuda(gpu_id, non_blocking=True)
+                current_img = to_device(sample['current_img'], device, non_blocking=True)
 
                 if frame_idx == 0:
                     videoWriter = cv2.VideoWriter(
@@ -191,21 +209,21 @@ def demo(cfg):
                         'Object number: {}. Inference size: {}x{}. Output size: {}x{}.'
                         .format(obj_nums[0],
                                 current_img.size()[2],
-                                current_img.size()[3], int(output_height),
+                                current_img.size()[3],
+                                int(output_height),
                                 int(output_width)))
-                    current_label = sample['current_label'].cuda(
-                        gpu_id, non_blocking=True).float()
+                    current_label = to_device(
+                        sample['current_label'], device, non_blocking=True
+                    ).float()
                     current_label = F.interpolate(current_label,
                                                   size=current_img.size()[2:],
                                                   mode="nearest")
-                    # add reference frame
                     engine.add_reference_frame(current_img,
                                                current_label,
                                                frame_step=0,
                                                obj_nums=obj_nums)
                 else:
                     print('Processing image {}...'.format(img_name))
-                    # predict segmentation
                     engine.match_propogate_one_frame(current_img)
                     pred_logit = engine.decode_current_logits(
                         (output_height, output_width))
@@ -215,10 +233,8 @@ def demo(cfg):
                     _pred_label = F.interpolate(pred_label,
                                                 size=engine.input_size_2d,
                                                 mode="nearest")
-                    # update memory
                     engine.update_memory(_pred_label)
 
-                    # save results
                     input_image_path = os.path.join(image_seq_root, img_name)
                     output_mask_path = os.path.join(
                         output_mask_seq_root,
@@ -231,7 +247,6 @@ def demo(cfg):
                     pred_label.save(output_mask_path)
 
                     input_image = Image.open(input_image_path)
-
                     overlayed_image = overlay(
                         np.array(input_image, dtype=np.uint8),
                         np.array(pred_label, dtype=np.uint8), color_palette)
@@ -245,20 +260,14 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="AOT Demo")
     parser.add_argument('--exp_name', type=str, default='default')
-
     parser.add_argument('--stage', type=str, default='pre_ytb_dav')
     parser.add_argument('--model', type=str, default='r50_aotl')
-
     parser.add_argument('--gpu_id', type=int, default=0)
-
-    parser.add_argument('--data_path', type=str, default='./datasets/Demo')
+    parser.add_argument('--data_path', type=str, default='./datasets/Demo/myfile')
     parser.add_argument('--output_path', type=str, default='./demo_output')
-    parser.add_argument('--ckpt_path',
-                        type=str,
+    parser.add_argument('--ckpt_path', type=str,
                         default='./pretrain_models/R50_AOTL_PRE_YTB_DAV.pth')
-
     parser.add_argument('--max_resolution', type=float, default=480 * 1.3)
-
     parser.add_argument('--amp', action='store_true')
     parser.set_defaults(amp=False)
 
@@ -268,15 +277,18 @@ def main():
     cfg = engine_config.EngineConfig(args.exp_name, args.model)
 
     cfg.TEST_GPU_ID = args.gpu_id
-
     cfg.TEST_CKPT_PATH = args.ckpt_path
     cfg.TEST_DATA_PATH = args.data_path
     cfg.TEST_OUTPUT_PATH = args.output_path
-
     cfg.TEST_MIN_SIZE = None
     cfg.TEST_MAX_SIZE = args.max_resolution * 800. / 480.
 
-    if args.amp:
+    # AMP is CUDA-only; skip gracefully on CPU
+    use_amp = args.amp and torch.cuda.is_available()
+    if args.amp and not torch.cuda.is_available():
+        print('WARNING: --amp requested but CUDA not available; running without AMP.')
+
+    if use_amp:
         with torch.cuda.amp.autocast(enabled=True):
             demo(cfg)
     else:
@@ -285,3 +297,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
