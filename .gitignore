@@ -1,29 +1,67 @@
-.vscode
-ckpt/*
+# =========================
+# Python cache / compiled
+# =========================
+__pycache__/
+*.pyc
+
+# =========================
+# Model weights / checkpoints
+# =========================
+*.pt
+*.pth
+ckpt/
+
+# =========================
+# Large / generated assets
+# =========================
 assets/*masks
 assets/*mp4
-# assets/*zip
 assets/*gif
-*.pyc
-debug
-cym_utils
-/src
-/tracking_results
-/aot/results
-/aot/pretrain_models
-/aot/datasets
-/ast_master 
-# Environments
-.env
-.envrc
-.venv
-env/
+# assets/*zip   # keep commented if you sometimes need zips
+
+# =========================
+# Project-specific folders
+# =========================
+debug/
+cym_utils/
+src/
+tracking_results/
+demo_output/
+img_logs/
+aot/results/
+aot/pretrain_models/
+aot/datasets/
+
+ast_master/
+
+# =========================
+# Virtual environments
+# =========================
 venv/
-my-venv/
-ENV/
 myvenv/
-env.bak/
-venv.bak/
-# Block virtual environment permanently
-/my-venv/
 my-venv/
+.env
+
+# =========================
+# IDE / editor
+# =========================
+.vscode/
+
+# =========================
+# Logs / misc
+# =========================
+*.log
+*.out
+
+# =========================
+# OS junk
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Temporary files
+# =========================
+tmp/
+temp/
+*.bak
