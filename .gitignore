@@ -1,0 +1,15 @@
+.vscode
+ckpt/*
+assets/*masks
+assets/*mp4
+# assets/*zip
+assets/*gif
+*.pyc
+debug
+cym_utils
+/src
+/tracking_results
+/aot/results
+/aot/pretrain_models
+/aot/datasets
+/ast_master 
