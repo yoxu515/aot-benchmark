@@ -21,6 +21,7 @@ env/
 venv/
 my-venv/
 ENV/
+myvenv/
 env.bak/
 venv.bak/
 # Block virtual environment permanently
