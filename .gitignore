@@ -13,3 +13,16 @@ cym_utils
 /aot/pretrain_models
 /aot/datasets
 /ast_master 
+# Environments
+.env
+.envrc
+.venv
+env/
+venv/
+my-venv/
+ENV/
+env.bak/
+venv.bak/
+# Block virtual environment permanently
+/my-venv/
+my-venv/
