@@ -122,7 +122,7 @@ class Trainer(object):
 
         self.enable_amp = enable_amp
         if enable_amp:
-            self.scaler = torch.cuda.amp.GradScaler()
+            self.scaler = torch.amp.GradScaler(device='cuda')
         else:
             self.scaler = None
 
@@ -458,7 +458,7 @@ class Trainer(object):
                 optimizer.zero_grad(set_to_none=True)
 
                 if self.enable_amp:
-                    with torch.cuda.amp.autocast(enabled=True):
+                    with torch.amp.autocast(device_type='cuda', enabled=True):
                         
                         loss, all_pred, all_loss, boards = model(
                             all_frames,
