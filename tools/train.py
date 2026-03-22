@@ -10,6 +10,11 @@ import torch.multiprocessing as mp
 
 from networks.managers.trainer import Trainer
 
+# try:
+#     import spatial_correlation_sampler
+# except Exception as inst:
+#     print(inst+" For better efficiency, please install it.")
+
 
 def main_worker(gpu, cfg, enable_amp=True):
     # Initiate a training manager

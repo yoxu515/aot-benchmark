@@ -8,6 +8,7 @@ sys.path.append('..')
 import cv2
 from PIL import Image
 from skimage.morphology import dilation
+
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -74,7 +75,7 @@ _palette = [
 ]
 color_palette = np.array(_palette).reshape(-1, 3)
 
-
+# ── device helper ──────────────────────────────────────────────────────────────
 def get_device(gpu_id: int) -> torch.device:
     if torch.cuda.is_available():
         return torch.device(f'cuda:{gpu_id}')
@@ -86,6 +87,7 @@ def to_device(tensor: torch.Tensor, device: torch.device, non_blocking: bool = F
     """Move tensor to device; non_blocking is only meaningful for CUDA."""
     nb = non_blocking and device.type == 'cuda'
     return tensor.to(device, non_blocking=nb)
+# ───────────────────────────────────────────────────────────────────────────────
 
 
 def overlay(image, mask, colors=[255, 0, 0], cscale=1, alpha=0.4):
@@ -95,13 +97,10 @@ def overlay(image, mask, colors=[255, 0, 0], cscale=1, alpha=0.4):
     object_ids = np.unique(mask)
 
     for object_id in object_ids[1:]:
-        # Overlay color on  binary mask
-
         foreground = image * alpha + np.ones(
             image.shape) * (1 - alpha) * np.array(colors[object_id])
         binary_mask = mask == object_id
 
-        # Compose image
         im_overlay[binary_mask] = foreground[binary_mask]
 
         countours = dilation(binary_mask) ^ binary_mask
@@ -263,7 +262,7 @@ def main():
     parser.add_argument('--stage', type=str, default='pre_ytb_dav')
     parser.add_argument('--model', type=str, default='r50_aotl')
     parser.add_argument('--gpu_id', type=int, default=0)
-    parser.add_argument('--data_path', type=str, default='./datasets/Demo/myfile')
+    parser.add_argument('--data_path', type=str, default='./datasets/Demo')
     parser.add_argument('--output_path', type=str, default='./demo_output')
     parser.add_argument('--ckpt_path', type=str,
                         default='./pretrain_models/R50_AOTL_PRE_YTB_DAV.pth')
@@ -289,12 +288,17 @@ def main():
         print('WARNING: --amp requested but CUDA not available; running without AMP.')
 
     if use_amp:
-        with torch.cuda.amp.autocast(enabled=True):
+        with torch.amp.autocast(device_type='cuda', enabled=True):
             demo(cfg)
     else:
         demo(cfg)
 
 
 if __name__ == '__main__':
+    try:
+        import spatial_correlation_sampler
+    except Exception as inst:
+        print(inst)
+        print(" For better efficiency, please install it.")
     main()
     
