@@ -23,6 +23,7 @@ try:
     enable_corr = True
 except Exception as inst:
     enable_corr = False
+    
 
 # Long-term attention
 class MultiheadAttention(nn.Module):
