@@ -1,5 +1,6 @@
 exp="default"
-gpu_num="4"
+gpu_num="4"  
+#in case of no gpu, just don't include this argument
 
 model="aott"
 # model="aots"
