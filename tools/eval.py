@@ -17,13 +17,12 @@ def main_worker(gpu, cfg, seq_queue=None, info_queue=None, enable_amp=False):
                           seq_queue=seq_queue,
                           info_queue=info_queue)
     # Start evaluation
-    use_amp = enable_amp and evaluator.use_cuda
-
-    if use_amp:
-        with torch.cuda.amp.autocast():
+    if enable_amp:
+        with torch.cuda.amp.autocast(enabled=True):
             evaluator.evaluating()
     else:
         evaluator.evaluating()
+
 
 def main():
     import argparse
@@ -37,8 +36,8 @@ def main():
     parser.add_argument('--st_skip', type=int, default=-1)
     parser.add_argument('--max_id_num', type=int, default='-1')
 
-    parser.add_argument('--gpu_id', type=int, default=-1)
-    parser.add_argument('--gpu_num', type=int, default=0)
+    parser.add_argument('--gpu_id', type=int, default=0)
+    parser.add_argument('--gpu_num', type=int, default=1)
 
     parser.add_argument('--ckpt_path', type=str, default='')
     parser.add_argument('--ckpt_step', type=int, default=-1)
@@ -98,7 +97,7 @@ def main():
         cfg.TEST_MAX_SHORT_EDGE = None  # the default resolution setting of CFBI and AOT
     cfg.TEST_MAX_LONG_EDGE = args.max_resolution * 800. / 480.
 
-    if args.gpu_id >= 0 and args.gpu_num > 1:
+    if args.gpu_num > 1:
         mp.set_start_method('spawn')
         seq_queue = mp.Queue()
         info_queue = mp.Queue()
@@ -111,3 +110,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
