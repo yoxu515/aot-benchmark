@@ -1,11 +1,25 @@
 # AOT Series Frameworks in PyTorch
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/decoupling-features-in-hierarchical/semi-supervised-video-object-segmentation-on-15)](https://paperswithcode.com/sota/semi-supervised-video-object-segmentation-on-15?p=decoupling-features-in-hierarchical)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/associating-objects-with-scalable/video-object-segmentation-on-youtube-vos)](https://paperswithcode.com/sota/video-object-segmentation-on-youtube-vos?p=associating-objects-with-scalable)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/associating-objects-with-scalable/semi-supervised-video-object-segmentation-on-18)](https://paperswithcode.com/sota/semi-supervised-video-object-segmentation-on-18?p=associating-objects-with-scalable)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/associating-objects-with-scalable/semi-supervised-video-object-segmentation-on-1)](https://paperswithcode.com/sota/semi-supervised-video-object-segmentation-on-1?p=associating-objects-with-scalable)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/associating-objects-with-scalable/visual-object-tracking-on-davis-2017)](https://paperswithcode.com/sota/visual-object-tracking-on-davis-2017?p=associating-objects-with-scalable)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/associating-objects-with-scalable/visual-object-tracking-on-davis-2016)](https://paperswithcode.com/sota/visual-object-tracking-on-davis-2016?p=associating-objects-with-scalable)
+<p>
+  <a href="https://paperswithcode.com/sota/semi-supervised-video-object-segmentation-on-15?p=decoupling-features-in-hierarchical">
+    <img src="https://img.shields.io/badge/SOTA-Semi--Supervised%20VOS%20(DAVIS)-brightgreen"/>
+  </a>
+  <a href="https://paperswithcode.com/sota/video-object-segmentation-on-youtube-vos?p=associating-objects-with-scalable">
+    <img src="https://img.shields.io/badge/SOTA-YouTube--VOS-blue"/>
+  </a>
+  <a href="https://paperswithcode.com/sota/semi-supervised-video-object-segmentation-on-18?p=associating-objects-with-scalable">
+    <img src="https://img.shields.io/badge/SOTA-DAVIS--2018-orange"/>
+  </a>
+  <a href="https://paperswithcode.com/sota/semi-supervised-video-object-segmentation-on-1?p=associating-objects-with-scalable">
+    <img src="https://img.shields.io/badge/SOTA-DAVIS--2017-yellow"/>
+  </a>
+  <a href="https://paperswithcode.com/sota/visual-object-tracking-on-davis-2017?p=associating-objects-with-scalable">
+    <img src="https://img.shields.io/badge/SOTA-Tracking%20DAVIS--2017-red"/>
+  </a>
+  <a href="https://paperswithcode.com/sota/visual-object-tracking-on-davis-2016?p=associating-objects-with-scalable">
+    <img src="https://img.shields.io/badge/SOTA-Tracking%20DAVIS--2016-purple"/>
+  </a>
+</p>
 
 ## News
 - `2024/03`: **AOST** - [AOST](https://arxiv.org/abs/2203.11442), the journal extension of AOT, has been accepted by TPAMI. AOST is the first scalable VOS framework supporting run-time speed-accuracy trade-offs, from real-time efficiency to SOTA performance.
