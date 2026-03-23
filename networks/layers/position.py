@@ -26,7 +26,7 @@ def generate_coord(x):
     device = x.device
     col = torch.arange(0, h, device=device)
     row = torch.arange(0, w, device=device)
-    grid_h, grid_w = torch.meshgrid(col, row)
+    grid_h, grid_w = torch.meshgrid(col, row, indexing='ij')
     return grid_h, grid_w
 
 
