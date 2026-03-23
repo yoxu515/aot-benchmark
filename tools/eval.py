@@ -9,6 +9,11 @@ import torch.multiprocessing as mp
 
 from networks.managers.evaluator import Evaluator
 
+# try:
+#     import spatial_correlation_sampler
+# except Exception as inst:
+#     print(inst+" For better efficiency, please install it.")
+
 
 def main_worker(gpu, cfg, seq_queue=None, info_queue=None, enable_amp=False):
     # Initiate a evaluating manager
@@ -18,7 +23,7 @@ def main_worker(gpu, cfg, seq_queue=None, info_queue=None, enable_amp=False):
                           info_queue=info_queue)
     # Start evaluation
     if enable_amp:
-        with torch.cuda.amp.autocast(enabled=True):
+        with torch.amp.autocast(device_type='cuda', enabled=True):
             evaluator.evaluating()
     else:
         evaluator.evaluating()

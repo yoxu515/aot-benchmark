@@ -18,6 +18,12 @@ def multiply_by_xchunks(x, y, chunks=1):
     else:
         return torch.cat([_x @ y for _x in x.chunk(chunks, dim=-2)], dim=-2)
 
+try:
+    import spatial_correlation_sampler
+    enable_corr = True
+except Exception as inst:
+    enable_corr = False
+    
 
 # Long-term attention
 class MultiheadAttention(nn.Module):
@@ -128,8 +134,9 @@ class MultiheadLocalAttentionV1(nn.Module):
                  max_dis=7,
                  dilation=1,
                  use_linear=True,
-                 enable_corr=True):
+                 enable_corr=enable_corr):
         super().__init__()
+        self.enable_corr = enable_corr
         self.dilation = dilation
         self.window_size = 2 * max_dis + 1
         self.max_dis = max_dis
@@ -155,8 +162,7 @@ class MultiheadLocalAttentionV1(nn.Module):
 
         self.enable_corr = enable_corr
 
-        if enable_corr:
-            from spatial_correlation_sampler import SpatialCorrelationSampler
+        if self.enable_corr:
             self.correlation_sampler = SpatialCorrelationSampler(
                 kernel_size=1,
                 patch_size=self.window_size,
@@ -246,7 +252,7 @@ class MultiheadLocalAttentionV2(nn.Module):
                  max_dis=7,
                  dilation=1,
                  use_linear=True,
-                 enable_corr=True,
+                 enable_corr=enable_corr,
                  d_att=None,
                  use_dis=False):
         super().__init__()
@@ -279,7 +285,6 @@ class MultiheadLocalAttentionV2(nn.Module):
         self.enable_corr = enable_corr
 
         if enable_corr:
-            from spatial_correlation_sampler import SpatialCorrelationSampler
             self.correlation_sampler = SpatialCorrelationSampler(
                 kernel_size=1,
                 patch_size=self.window_size,
@@ -381,11 +386,11 @@ class MultiheadLocalAttentionV2(nn.Module):
             ky, kx = torch.meshgrid([
                 torch.arange(0, pad_height, device=local_attn.device),
                 torch.arange(0, pad_width, device=local_attn.device)
-            ])
+            ],indexing='ij')
             qy, qx = torch.meshgrid([
                 torch.arange(0, height, device=local_attn.device),
                 torch.arange(0, width, device=local_attn.device)
-            ])
+            ],indexing='ij')
 
             offset_y = qy.reshape(-1, 1) - ky.reshape(1, -1) + self.max_dis
             offset_x = qx.reshape(-1, 1) - kx.reshape(1, -1) + self.max_dis
@@ -542,11 +547,11 @@ class MultiheadLocalAttentionV3(nn.Module):
             ky, kx = torch.meshgrid([
                 torch.arange(0, pad_height, device=device),
                 torch.arange(0, pad_width, device=device)
-            ])
+            ],indexing='ij')
             qy, qx = torch.meshgrid([
                 torch.arange(0, height, device=device),
                 torch.arange(0, width, device=device)
-            ])
+            ],indexing='ij')
 
             qy = qy.reshape(-1, 1)
             qx = qx.reshape(-1, 1)
@@ -718,7 +723,7 @@ class LocalGatedPropagation(nn.Module):
                  max_dis=7,
                  dilation=1,
                  use_linear=True,
-                 enable_corr=True,
+                 enable_corr=enable_corr,
                  d_att=None,
                  use_dis=False,
                  expand_ratio=2.):
@@ -758,7 +763,6 @@ class LocalGatedPropagation(nn.Module):
         self.enable_corr = enable_corr
 
         if enable_corr:
-            from spatial_correlation_sampler import SpatialCorrelationSampler
             self.correlation_sampler = SpatialCorrelationSampler(
                 kernel_size=1,
                 patch_size=self.window_size,
@@ -865,11 +869,11 @@ class LocalGatedPropagation(nn.Module):
             ky, kx = torch.meshgrid([
                 torch.arange(0, pad_height, device=local_attn.device),
                 torch.arange(0, pad_width, device=local_attn.device)
-            ])
+            ],indexing='ij')
             qy, qx = torch.meshgrid([
                 torch.arange(0, height, device=local_attn.device),
                 torch.arange(0, width, device=local_attn.device)
-            ])
+            ],indexing='ij')
 
             offset_y = qy.reshape(-1, 1) - ky.reshape(1, -1) + self.max_dis
             offset_x = qx.reshape(-1, 1) - kx.reshape(1, -1) + self.max_dis

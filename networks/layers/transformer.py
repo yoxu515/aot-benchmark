@@ -5,6 +5,11 @@ from torch import nn
 from networks.layers.basic import DropPath, GroupNorm1D, GNActDWConv2d, seq_to_2d, ScaleOffset, mask_out
 from networks.layers.attention import silu, MultiheadAttention, MultiheadLocalAttentionV2, MultiheadLocalAttentionV3, GatedPropagation, LocalGatedPropagation
 
+try:
+    import spatial_correlation_sampler
+    enable_corr = True
+except Exception as inst:
+    enable_corr = False
 
 def _get_norm(indim, type='ln', groups=8):
     if type == 'gn':
@@ -262,9 +267,9 @@ class LongShortTermTransformerBlock(nn.Module):
                  droppath_lst=False,
                  activation="gelu",
                  local_dilation=1,
-                 enable_corr=True):
+                 enable_corr=enable_corr):
         super().__init__()
-
+        self.enable_corr = enable_corr
         # Long Short-Term Attention
         self.norm1 = _get_norm(d_model)
         self.linear_Q = nn.Linear(d_model, d_model)
@@ -275,17 +280,7 @@ class LongShortTermTransformerBlock(nn.Module):
                                                  use_linear=False,
                                                  dropout=lt_dropout)
 
-        # MultiheadLocalAttention = MultiheadLocalAttentionV2 if enable_corr else MultiheadLocalAttentionV3
-        if enable_corr:
-            try:
-                import spatial_correlation_sampler
-                MultiheadLocalAttention = MultiheadLocalAttentionV2
-            except Exception as inst:
-                print(inst)
-                print("Failed to import PyTorch Correlation, For better efficiency, please install it.")
-                MultiheadLocalAttention = MultiheadLocalAttentionV3
-        else:
-            MultiheadLocalAttention = MultiheadLocalAttentionV3
+        MultiheadLocalAttention = (MultiheadLocalAttentionV2 if self.enable_corr else MultiheadLocalAttentionV3)
         self.short_term_attn = MultiheadLocalAttention(d_model,
                                                        att_nhead,
                                                        dilation=local_dilation,
@@ -389,8 +384,9 @@ class LongShortTermTransformerBlockV2(nn.Module):
                  droppath_lst=False,
                  activation="gelu",
                  local_dilation=1,
-                 enable_corr=True):
+                 enable_corr=enable_corr):
         super().__init__()
+        self.enable_corr = enable_corr
         self.d_model = d_model
         self.att_nhead = att_nhead
 
@@ -408,17 +404,7 @@ class LongShortTermTransformerBlockV2(nn.Module):
                                                  use_linear=False,
                                                  dropout=lt_dropout)
 
-        # MultiheadLocalAttention = MultiheadLocalAttentionV2 if enable_corr else MultiheadLocalAttentionV3
-        if enable_corr:
-            try:
-                import spatial_correlation_sampler
-                MultiheadLocalAttention = MultiheadLocalAttentionV2
-            except Exception as inst:
-                print(inst)
-                print("Failed to import PyTorch Correlation, For better efficiency, please install it.")
-                MultiheadLocalAttention = MultiheadLocalAttentionV3
-        else:
-            MultiheadLocalAttention = MultiheadLocalAttentionV3
+        MultiheadLocalAttention = (MultiheadLocalAttentionV2 if self.enable_corr else MultiheadLocalAttentionV3)
         self.short_term_attn = MultiheadLocalAttention(d_model,
                                                        att_nhead,
                                                        dilation=local_dilation,
@@ -524,11 +510,12 @@ class GatedPropagationModule(nn.Module):
                  droppath_lst=False,
                  activation="gelu",
                  local_dilation=1,
-                 enable_corr=True,
+                 enable_corr=enable_corr,
                  max_local_dis=7,
                  layer_idx=0,
                  expand_ratio=2.):
         super().__init__()
+        self.enable_corr = enable_corr
         expand_ratio = expand_ratio
         expand_d_model = int(d_model * expand_ratio)
         self.expand_d_model = expand_d_model
@@ -560,19 +547,12 @@ class GatedPropagationModule(nn.Module):
                                     top_k=-1,
                                     expand_ratio=expand_ratio)
 
-        if enable_corr:
-            try:
-                import spatial_correlation_sampler
-            except Exception as inst:
-                print(inst)
-                print("Failed to import PyTorch Correlation, For better efficiency, please install it.")
-                enable_corr = False
         self.short_term_attn = LocalGatedPropagation(d_qk=self.d_model,
                                           d_vu=self.d_model * 2,
                                           num_head=att_nhead,
                                           dilation=local_dilation,
                                           use_linear=False,
-                                          enable_corr=enable_corr,
+                                          enable_corr= enable_corr,
                                           dropout=st_dropout,
                                           d_att=d_att,
                                           max_dis=max_local_dis,
