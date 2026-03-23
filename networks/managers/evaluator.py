@@ -19,7 +19,6 @@ from utils.eval import zip_folder
 from networks.models import build_vos_model
 from networks.engines import build_engine
 
-
 class Evaluator(object):
     def __init__(self, cfg, rank=0, seq_queue=None, info_queue=None):
         self.gpu = cfg.TEST_GPU_ID + rank
