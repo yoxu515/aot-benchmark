@@ -549,4 +549,3 @@ class Evaluator(object):
     def print_log(self, string):
         if self.rank == 0:
             print(string)
-            
