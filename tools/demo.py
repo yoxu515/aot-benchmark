@@ -283,4 +283,9 @@ def main():
 
 
 if __name__ == '__main__':
+    try:
+        import spatial_correlation_sampler
+    except Exception as inst:
+        print(inst)
+        print(" For better efficiency, please install it.")
     main()
