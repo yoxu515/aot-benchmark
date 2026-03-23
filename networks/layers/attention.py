@@ -18,6 +18,12 @@ def multiply_by_xchunks(x, y, chunks=1):
     else:
         return torch.cat([_x @ y for _x in x.chunk(chunks, dim=-2)], dim=-2)
 
+try:
+    from spatial_correlation_sampler import SpatialCorrelationSampler
+    enable_corr = True
+except Exception as inst:
+    enable_corr = False
+    
 
 # Long-term attention
 class MultiheadAttention(nn.Module):
@@ -32,6 +38,7 @@ class MultiheadAttention(nn.Module):
                  max_mem_len_ratio=-1,
                  top_k=-1):
         super().__init__()
+        self.enable_corr = enable_corr
         self.d_model = d_model
         self.num_head = num_head
         self.use_dis = use_dis
@@ -82,7 +89,7 @@ class MultiheadAttention(nn.Module):
                 Q = Q * scaling_ratio
 
         # Multi-head
-        Q = Q.view(-1, bs, num_head, self.d_att).permute(1, 2, 0, 3)
+        Q = Q.view(-1, bs, num_head, self.d_att).permute(1, 2, 0, 3) 
         K = K.view(-1, bs, num_head, self.d_att).permute(1, 2, 3, 0)
         V = V.view(-1, bs, num_head, hidden_dim).permute(1, 2, 0, 3)
 
@@ -128,8 +135,9 @@ class MultiheadLocalAttentionV1(nn.Module):
                  max_dis=7,
                  dilation=1,
                  use_linear=True,
-                 enable_corr=True):
+                 enable_corr=enable_corr):
         super().__init__()
+        self.enable_corr = enable_corr
         self.dilation = dilation
         self.window_size = 2 * max_dis + 1
         self.max_dis = max_dis
@@ -155,8 +163,7 @@ class MultiheadLocalAttentionV1(nn.Module):
 
         self.enable_corr = enable_corr
 
-        if enable_corr:
-            from spatial_correlation_sampler import SpatialCorrelationSampler
+        if self.enable_corr:
             self.correlation_sampler = SpatialCorrelationSampler(
                 kernel_size=1,
                 patch_size=self.window_size,
@@ -246,10 +253,11 @@ class MultiheadLocalAttentionV2(nn.Module):
                  max_dis=7,
                  dilation=1,
                  use_linear=True,
-                 enable_corr=True,
+                 enable_corr=enable_corr,
                  d_att=None,
                  use_dis=False):
         super().__init__()
+        self.enable_corr = enable_corr
         self.dilation = dilation
         self.window_size = 2 * max_dis + 1
         self.max_dis = max_dis
@@ -278,8 +286,7 @@ class MultiheadLocalAttentionV2(nn.Module):
 
         self.enable_corr = enable_corr
 
-        if enable_corr:
-            from spatial_correlation_sampler import SpatialCorrelationSampler
+        if self.enable_corr:
             self.correlation_sampler = SpatialCorrelationSampler(
                 kernel_size=1,
                 patch_size=self.window_size,
@@ -381,11 +388,11 @@ class MultiheadLocalAttentionV2(nn.Module):
             ky, kx = torch.meshgrid([
                 torch.arange(0, pad_height, device=local_attn.device),
                 torch.arange(0, pad_width, device=local_attn.device)
-            ])
+            ],indexing='ij')
             qy, qx = torch.meshgrid([
                 torch.arange(0, height, device=local_attn.device),
                 torch.arange(0, width, device=local_attn.device)
-            ])
+            ],indexing='ij')
 
             offset_y = qy.reshape(-1, 1) - ky.reshape(1, -1) + self.max_dis
             offset_x = qx.reshape(-1, 1) - kx.reshape(1, -1) + self.max_dis
@@ -542,11 +549,11 @@ class MultiheadLocalAttentionV3(nn.Module):
             ky, kx = torch.meshgrid([
                 torch.arange(0, pad_height, device=device),
                 torch.arange(0, pad_width, device=device)
-            ])
+            ],indexing='ij')
             qy, qx = torch.meshgrid([
                 torch.arange(0, height, device=device),
                 torch.arange(0, width, device=device)
-            ])
+            ],indexing='ij')
 
             qy = qy.reshape(-1, 1)
             qx = qx.reshape(-1, 1)
@@ -593,6 +600,7 @@ class GatedPropagation(nn.Module):
                  top_k=-1,
                  expand_ratio=2.):
         super().__init__()
+        self.enable_corr = enable_corr
         expand_ratio = expand_ratio
         self.expand_d_vu = int(d_vu * expand_ratio)
         self.d_vu = d_vu
@@ -671,7 +679,7 @@ class GatedPropagation(nn.Module):
                 Q = Q * scaling_ratio
 
         # Multi-head
-        Q = Q.view(-1, bs, num_head, self.d_att).permute(1, 2, 0, 3)
+        Q = Q.view(-1, bs, num_head, self.d_att).permute(1, 2, 0, 3) # [T, B, C] -> [B, H, T, D]
         K = K.view(-1, bs, num_head, self.d_att).permute(1, 2, 3, 0)
         V = V.view(-1, bs, num_head, hidden_dim).permute(1, 2, 0, 3)
 
@@ -718,11 +726,12 @@ class LocalGatedPropagation(nn.Module):
                  max_dis=7,
                  dilation=1,
                  use_linear=True,
-                 enable_corr=True,
+                 enable_corr=enable_corr,
                  d_att=None,
                  use_dis=False,
                  expand_ratio=2.):
         super().__init__()
+        self.enable_corr = enable_corr
         expand_ratio = expand_ratio
         self.expand_d_vu = int(d_vu * expand_ratio)
         self.d_qk = d_qk
@@ -757,8 +766,7 @@ class LocalGatedPropagation(nn.Module):
 
         self.enable_corr = enable_corr
 
-        if enable_corr:
-            from spatial_correlation_sampler import SpatialCorrelationSampler
+        if self.enable_corr:
             self.correlation_sampler = SpatialCorrelationSampler(
                 kernel_size=1,
                 patch_size=self.window_size,
@@ -865,11 +873,11 @@ class LocalGatedPropagation(nn.Module):
             ky, kx = torch.meshgrid([
                 torch.arange(0, pad_height, device=local_attn.device),
                 torch.arange(0, pad_width, device=local_attn.device)
-            ])
+            ],indexing='ij')
             qy, qx = torch.meshgrid([
                 torch.arange(0, height, device=local_attn.device),
                 torch.arange(0, width, device=local_attn.device)
-            ])
+            ],indexing='ij')
 
             offset_y = qy.reshape(-1, 1) - ky.reshape(1, -1) + self.max_dis
             offset_x = qx.reshape(-1, 1) - kx.reshape(1, -1) + self.max_dis
@@ -903,3 +911,4 @@ class LocalGatedPropagation(nn.Module):
                      stride=(1, 1),
                      dilation=self.dilation)
         return x
+    
