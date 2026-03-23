@@ -878,6 +878,7 @@ class LocalGatedPropagation(nn.Module):
                 torch.arange(0, height, device=local_attn.device),
                 torch.arange(0, width, device=local_attn.device)
             ],indexing='ij')
+            
 
             offset_y = qy.reshape(-1, 1) - ky.reshape(1, -1) + self.max_dis
             offset_x = qx.reshape(-1, 1) - kx.reshape(1, -1) + self.max_dis
