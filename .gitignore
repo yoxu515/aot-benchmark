@@ -31,7 +31,7 @@ img_logs/
 aot/results/
 aot/pretrain_models/
 aot/datasets/
-
+datasets/
 ast_master/
 
 # =========================
