@@ -16,7 +16,7 @@ except ImportError as e:
     print(e)
     print("Install it via `pip install pycocotools` if you want to train using coco dataset")
 
-
+# This code allows you to add datasets without worrying about their formats
 def get_args():
     parser = argparse.ArgumentParser(description='Unify Pretrain Dataset')
     parser.add_argument('--dst', type=str, default='./datasets/Static')
