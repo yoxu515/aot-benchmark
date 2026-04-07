@@ -228,7 +228,7 @@ class Trainer(object):
                     self.model,
                     self.optimizer,
                     resume_ckpt,
-                    self.gpu,
+                    self.device,
                     scaler=self.scaler)
 
             if len(removed_dict) > 0:
