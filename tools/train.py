@@ -16,7 +16,8 @@ def main_worker(rank, cfg, enable_amp=True):
     use_cuda = torch.cuda.is_available()
 
     if use_cuda:
-        device = torch.device(f"cuda:{rank}")
+        gpu_id = rank + cfg.DIST_START_GPU
+        device = torch.device(f"cuda:{gpu_id}")
     else:
         device = torch.device("cpu")
         enable_amp = False  # AMP not supported on CPU
