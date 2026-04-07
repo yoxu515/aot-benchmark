@@ -290,55 +290,98 @@ class VOSTrain(Dataset):
         return imagelist, lablist
 
     def get_ref_index(self,
-                      seqname,
-                      lablist,
-                      objs,
-                      min_fg_pixels=200,
-                      max_try=5):
+                    seqname,
+                    lablist,
+                    objs,
+                    min_fg_pixels=200,
+                    max_try=5):
+
         bad_indices = []
+
         for _ in range(max_try):
             ref_index = np.random.randint(len(lablist))
+
             if ref_index in bad_indices:
                 continue
-            ref_label = Image.open(
-                os.path.join(self.label_root, seqname, lablist[ref_index]))
+
+            path = os.path.join(self.label_root, seqname, lablist[ref_index])
+
+            # FIX 1: file existence
+            if not os.path.exists(path):
+                bad_indices.append(ref_index)
+                continue
+
+            try:
+                ref_label = Image.open(path)
+            except Exception:
+                bad_indices.append(ref_index)
+                continue
+
             ref_label = np.array(ref_label, dtype=np.uint8)
             ref_objs = list(np.unique(ref_label))
+
             is_consistent = True
             for obj in ref_objs:
                 if obj == 0:
                     continue
                 if obj not in objs:
                     is_consistent = False
+
             xs, ys = np.nonzero(ref_label)
+
             if len(xs) > min_fg_pixels and is_consistent:
-                break
+                return ref_index  # return valid
+
             bad_indices.append(ref_index)
-        return ref_index
+
+        # FALLBACK
+        for idx in range(len(lablist)):
+            path = os.path.join(self.label_root, seqname, lablist[idx])
+            if os.path.exists(path):
+                return idx
+
+        raise RuntimeError(f"No valid annotation found in sequence {seqname}")
 
     def get_ref_index_v2(self,
-                         seqname,
-                         lablist,
-                         min_fg_pixels=200,
-                         max_try=20,
-                         total_gap=0):
+                    seqname,
+                    lablist,
+                    min_fg_pixels=200,
+                    max_try=20,
+                    total_gap=0):
+
         search_range = len(lablist) - total_gap
         if search_range <= 1:
             return 0
+
         bad_indices = []
+
         for _ in range(max_try):
             ref_index = np.random.randint(search_range)
+
             if ref_index in bad_indices:
                 continue
-            ref_label = Image.open(
-                os.path.join(self.label_root, seqname, lablist[ref_index]))
+
+            path = os.path.join(self.label_root, seqname, lablist[ref_index])
+
+            if not os.path.exists(path):
+                bad_indices.append(ref_index)
+                continue
+
+            try:
+                ref_label = Image.open(path)
+            except Exception:
+                bad_indices.append(ref_index)
+                continue
+
             ref_label = np.array(ref_label, dtype=np.uint8)
             xs, ys = np.nonzero(ref_label)
-            if len(xs) > min_fg_pixels:
-                break
-            bad_indices.append(ref_index)
-        return ref_index
 
+            if len(xs) > min_fg_pixels:
+                return ref_index
+
+            bad_indices.append(ref_index)
+
+        return 0  # fallback
     def get_curr_gaps(self, seq_len, max_gap=999, max_try=10):
         for _ in range(max_try):
             curr_gaps = []
@@ -388,15 +431,27 @@ class VOSTrain(Dataset):
         return curr_indices
 
     def get_image_label(self, seqname, imagelist, lablist, index):
-        image = cv2.imread(
-            os.path.join(self.image_root, seqname, imagelist[index]))
+        img_path = os.path.join(self.image_root, seqname, imagelist[index])
+        label_path = os.path.join(self.label_root, seqname, lablist[index])
+
+        image = cv2.imread(img_path)
         image = np.array(image, dtype=np.float32)
 
         if self.rgb:
             image = image[:, :, [2, 1, 0]]
 
-        label = Image.open(
-            os.path.join(self.label_root, seqname, lablist[index]))
+        # 🔥 FIX: safe label loading
+        if not os.path.exists(label_path):
+            # fallback: find nearest valid label
+            for i in range(len(lablist)):
+                alt_path = os.path.join(self.label_root, seqname, lablist[i])
+                if os.path.exists(alt_path):
+                    label_path = alt_path
+                    break
+            else:
+                raise RuntimeError(f"No valid label found in {seqname}")
+
+        label = Image.open(label_path)
         label = np.array(label, dtype=np.uint8)
 
         return image, label
@@ -680,3 +735,4 @@ class TEST(Dataset):
         if self.transform is not None:
             sample = self.transform(sample)
         return sample
+
