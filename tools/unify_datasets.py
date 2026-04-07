@@ -20,7 +20,6 @@ except ImportError as e:
 def get_args():
     parser = argparse.ArgumentParser(description='Unify Pretrain Dataset')
     parser.add_argument('--dst', type=str, default='./datasets/Static')
-    parser.add_argument('--palette', type=str, default='./assets/mask_palette.png')
     parser.add_argument('--worker', type=int, default=10, help='Threads number.')
     parser.add_argument('--name', type=str, required=True)
     parser.add_argument('--src', type=str, required=True)
@@ -36,7 +35,7 @@ def cp_files(src_list, dst_dir):
         copyfile(src_path, dst_path)
 
 
-def cvt_mask_palette(data):
+def convert_mask(data):
     src_path, dst_dir = data
 
     mask = cv2.imread(src_path)
@@ -58,7 +57,6 @@ def cvt_mask_palette(data):
         obj_cnt += 1
 
     new_label = Image.fromarray(new_label.reshape(mask_size))
-    new_label.putpalette(mask_palette)
 
     dst_path = os.path.join(dst_dir, os.path.basename(src_path))
     new_label.save(dst_path)
@@ -76,7 +74,7 @@ def cvt_MSRA10K():
         os.makedirs(dst_mask_dir)
 
     mask_list = [(x, dst_mask_dir) for x in mask_list]
-    pools = multiprocessing.Pool(16)
+    pools = multiprocessing.Pool(worker_n)
     pools.map(cvt_mask_palette, mask_list)
     pools.close()
     pools.join()
@@ -140,7 +138,6 @@ def create_COCO_img_mask(data):
 
     if obj_cnt > 1:
         mask_all = Image.fromarray(mask_all)
-        mask_all.putpalette(mask_palette)
 
         img_name = img_info['file_name'][:-4] + '.png'
         dst_path = os.path.join(dst_mask_dir, img_name)
@@ -150,7 +147,7 @@ def create_COCO_img_mask(data):
         tmp = img_info['coco_url'].split('/')[-2:]
         img_path_src = os.path.join(args.src, tmp[0], tmp[1])
         img_path_dst = os.path.join(dst_img_dir, img_info['file_name'])
-        copyfile(img_path_src, img_path_dst)
+        if not os.path.exists(img_path_dst): copyfile(img_path_src, img_path_dst)
 
 
 def cvt_COCO():
@@ -192,8 +189,6 @@ def cvt_mask_palette_VOC(data):
     mask = np.array(myutils.load_image_in_PIL(src_path, 'P'))
     mask[mask > 20] = 0
     mask = Image.fromarray(mask)
-    mask.putpalette(mask_palette)
-
     mask.save(dst_path)
 
 
@@ -228,7 +223,6 @@ def cvt_VOC2012():
 if __name__ == '__main__':
     args = get_args()
 
-    mask_palette = Image.open(args.palette).getpalette()
     worker_n = args.worker
     chunk_size = 100
     coco = None

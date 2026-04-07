@@ -9,31 +9,38 @@ import dataloaders.video_transforms as tr
 from networks.models import build_vos_model
 from networks.engines import build_engine
 
-from utils.learning import get_trainable_params, adjust_learning_rate
+from utils.learning import get_trainable_params
 import torch.optim as optim
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 save_dir = os.path.join(BASE_DIR, "pretrain_models")
 
+
 class StaticTrainer:
     """
     Clean isolated trainer for STATIC (image-based) pretraining.
-    No temporal logic. No prev-frame dependency.
+    CPU + GPU compatible.
     """
-    def __init__(self, cfg, gpu=0):
-        self.cfg = cfg
-        self.gpu = gpu
 
-        torch.cuda.set_device(self.gpu)
+    def __init__(self, cfg, device=None):
+        self.cfg = cfg
+
+        # ---- Device handling ----
+        if device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = torch.device(device)
+
+        print(f"[StaticTrainer] Using device: {self.device}")
 
         # ---- Build model ----
-        self.model = build_vos_model(cfg.MODEL_VOS, cfg).cuda(self.gpu)
+        self.model = build_vos_model(cfg.MODEL_VOS, cfg).to(self.device)
 
         self.engine = build_engine(
             cfg.MODEL_ENGINE,
             'train',
             aot_model=self.model,
-            gpu_id=self.gpu,
+            gpu_id=0 if self.device.type == "cuda" else -1,
             long_term_mem_gap=cfg.TRAIN_LONG_TERM_MEM_GAP
         )
 
@@ -83,7 +90,7 @@ class StaticTrainer:
             batch_size=cfg.TRAIN_BATCH_SIZE,
             shuffle=True,
             num_workers=cfg.DATA_WORKERS,
-            pin_memory=True
+            pin_memory=(self.device.type == "cuda")  # 🔥 important
         )
 
     def train(self):
@@ -97,8 +104,8 @@ class StaticTrainer:
                 if self.step >= cfg.TRAIN_TOTAL_STEPS:
                     break
 
-                ref_imgs = sample['ref_img'].cuda(self.gpu)
-                labels = sample['ref_label'].cuda(self.gpu)
+                ref_imgs = sample['ref_img'].to(self.device)
+                labels = sample['ref_label'].to(self.device)
                 obj_nums = [int(x) for x in sample['meta']['obj_num']]
 
                 batch_size = ref_imgs.size(0)
@@ -131,7 +138,7 @@ class StaticTrainer:
                 if self.step % 50 == 0:
                     print(f"[Static Pretrain] Step {self.step} | Loss: {loss.item():.4f}")
 
-                # ---- Checkpointing (SAFE & CONTROLLED) ----
+                # ---- Checkpointing ----
                 if self.step > 0 and self.step % 1000 == 0:
                     ckpt_path = os.path.join(save_dir, f"static_step_{self.step}.pth")
                     torch.save(self.model.state_dict(), ckpt_path)
@@ -144,4 +151,4 @@ class StaticTrainer:
         torch.save(self.model.state_dict(), final_path)
 
         print(f"[StaticTrainer] Final model saved at: {final_path}")
-        print("Static pretraining finished.")    
+        print("Static pretraining finished.")

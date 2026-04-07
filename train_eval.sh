@@ -9,20 +9,18 @@ model="aott"
 # model="r50_aotl"
 # model="swinb_aotl"
 
+## Pre-Training ##
+python networks/managers/pre_trainer.py
+
 ## Training ##
-stage="pre"
-python tools/train.py --amp \
-	--exp_name ${exp} \
-	--stage ${stage} \
-	--model ${model} \
-	--gpu_num ${gpu_num}
-	
+pretrain_ckpt="pretrain_model/static_pretrain_final.pth"
 stage="pre_ytb_dav"
 python tools/train.py --amp \
 	--exp_name ${exp} \
 	--stage ${stage} \
 	--model ${model} \
 	--gpu_num ${gpu_num}
+	--pretrained_path ${pretrain_ckpt}
 
 ## Evaluation ##
 dataset="davis2017"

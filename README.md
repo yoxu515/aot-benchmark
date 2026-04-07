@@ -100,8 +100,40 @@ Results:
 
     Please follow the below instruction to prepare datasets in each corresponding folder.
     * **Static** 
-    
-        [datasets/Static](datasets/Static): pre-training dataset with static images. Guidance can be found in [AFB-URR](https://github.com/xmlyqing00/AFB-URR), which we referred to in the implementation of the pre-training.
+    ## Pre-training on Static Images
+      This stage trains the model on static image segmentation datasets before video training.
+
+      ### 1. Download Datasets
+
+      Download any of the following datasets (COCO recommended for scale):
+
+      - **MSRA10K**: https://mmcheng.net/msra10k/  
+      - **ECSSD**: http://www.cse.cuhk.edu.hk/leojia/projects/hsaliency/dataset.html  
+      - **PASCAL-S**: http://cbs.ic.gatech.edu/salobj/download/salObj.zip  
+      - **PASCAL VOC2012**: https://www.robots.ox.ac.uk/~vgg/projects/pascal/VOC/voc2012/  
+      - **COCO**: https://cocodataset.org/#download *(requires `pycocotools`)*  
+
+      > You do **not** need to download all datasets. Missing datasets are automatically skipped.
+
+      ---
+
+      ### 2. Convert to Unified Format
+
+      Convert datasets into a **DAVIS-style format**:
+
+      ```bash
+      python3 unify_pretrain_dataset.py --name <DATASET_NAME> --src <PATH_TO_DATASET> 
+      Dataset Mapping
+      MSRA10K → --name MSRA10K
+      ECSSD → --name ECSSD
+      PASCAL-S → --name PASCAl-s
+      PASCAL VOC2012 → --name PASCALVOC2012
+      COCO → --name COCO (requires pip install pycocotools)
+
+    At last after converting 
+      ```bash
+      rm -rf /path/to/source/dataset
+
     * **YouTube-VOS**
 
         A commonly-used large-scale VOS dataset.
