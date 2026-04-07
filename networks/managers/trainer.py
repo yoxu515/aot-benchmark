@@ -11,7 +11,7 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from dataloaders.train_datasets import DAVIS2017_Train, YOUTUBEVOS_Train, StaticTrain, TEST
+from dataloaders.train_datasets import DAVIS2017_Train, YOUTUBEVOS_Train, TEST
 import dataloaders.video_transforms as tr
 
 from utils.meters import AverageMeter
@@ -257,7 +257,7 @@ class Trainer(object):
 
     def prepare_dataset(self):
         cfg = self.cfg
-        self.enable_prev_frame = cfg.TRAIN_ENABLE_PREV_FRAME
+        self.enable_prev_frame = True
 
         self.print_log('Process dataset...')
         if cfg.TRAIN_AUG_TYPE == 'v1':
@@ -289,16 +289,6 @@ class Trainer(object):
             assert NotImplementedError
 
         train_datasets = []
-        if 'static' in cfg.DATASETS:
-            pretrain_vos_dataset = StaticTrain(
-                cfg.DIR_STATIC,
-                cfg.DATA_RANDOMCROP,
-                seq_len=cfg.DATA_SEQ_LEN,
-                merge_prob=cfg.DATA_DYNAMIC_MERGE_PROB,
-                max_obj_n=cfg.MODEL_MAX_OBJ_NUM,
-                aug_type=cfg.TRAIN_AUG_TYPE)
-            train_datasets.append(pretrain_vos_dataset)
-            self.enable_prev_frame = False
 
         if 'davis2017' in cfg.DATASETS:
             train_davis_dataset = DAVIS2017_Train(
