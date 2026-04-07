@@ -282,7 +282,6 @@ class VOSTrain(Dataset):
 
     def __len__(self):
         return int(len(self.seqs) * self.repeat_time)
-    
     def reverse_seq(self, imagelist, lablist):
         if np.random.randint(2) == 1:
             imagelist = imagelist[::-1]
@@ -691,7 +690,6 @@ class YOUTUBEVOS_Train(VOSTrain):
                                                enable_prev_frame,
                                                merge_prob=merge_prob,
                                                max_obj_n=max_obj_n)
-    
     def _check_preprocess(self):
         if not os.path.isfile(self.seq_list_file):
             print('No such file: {}.'.format(self.seq_list_file))
