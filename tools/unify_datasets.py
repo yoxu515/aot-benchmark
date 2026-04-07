@@ -7,7 +7,6 @@ from shutil import copyfile
 from glob import glob
 from tqdm import tqdm
 from PIL import Image
-
 import myutils
 
 try:
