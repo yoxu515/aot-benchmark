@@ -113,6 +113,8 @@ Results:
       - **PASCAL VOC2012**: https://www.robots.ox.ac.uk/~vgg/projects/pascal/VOC/voc2012/  
       - **COCO**: https://cocodataset.org/#download *(requires `pycocotools`)*  
 
+      Download to a random file to delete it later
+
       > You do **not** need to download all datasets. Missing datasets are automatically skipped.
 
       ---
