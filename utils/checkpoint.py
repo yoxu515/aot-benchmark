@@ -4,12 +4,10 @@ import numpy as np
 from pathlib import Path
 
 
-def get_device(device=None):
-    if isinstance(device, torch.device):
-        return device
-    if device is None:
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    return torch.device(f"cuda:{device}")
+def get_device(device):
+    if not isinstance(device, torch.device):
+        raise TypeError("device must be torch.device")
+    return device
 
 def load_network_and_optimizer(net, opt, pretrained_dir,  device=None, scaler=None):
     device = get_device(device)
