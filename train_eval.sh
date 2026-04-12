@@ -1,5 +1,5 @@
 exp="default"
-gpu_num="4"  
+gpu_num="4"
 #in case of no gpu, just don't include this argument
 
 model="aott"
@@ -10,7 +10,12 @@ model="aott"
 # model="swinb_aotl"
 
 ## Pre-Training ##
-python networks/managers/pre_trainer.py
+stage="pre"
+python tools/pretrain.py --amp \
+	--exp_name ${exp} \
+	--stage {stage} \
+	--model ${model} \
+	--gpu_num ${gpu_num} \
 
 ## Training ##
 pretrain_ckpt="pretrain_model/static_pretrain_final.pth"
