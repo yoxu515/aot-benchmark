@@ -10,8 +10,9 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as TF
-
+from torchvision.transforms import InterpolationMode
 import dataloaders.image_transforms as IT
+
 
 cv2.setNumThreads(0)
 
@@ -150,12 +151,14 @@ class StaticTrain(Dataset):
         else:
             assert NotImplementedError
 
-        self.random_affine = IT.RandomAffine(degrees=20,
-                                             translate=(0.1, 0.1),
-                                             scale=(0.9, 1.1),
-                                             shear=10,
-                                             resample=Image.BICUBIC,
-                                             fillcolor=(124, 116, 104))
+        self.random_affine = IT.RandomAffine(
+            degrees=20,
+            translate=(0.1, 0.1),
+            scale=(0.9, 1.1),
+            shear=10,
+            interpolation=InterpolationMode.BICUBIC,
+            fill=(124, 116, 104)
+        )
         base_ratio = float(output_size[1]) / output_size[0]
         self.random_resize_crop = IT.RandomResizedCrop(
             output_size, (0.8, 1),
@@ -282,7 +285,7 @@ class VOSTrain(Dataset):
 
     def __len__(self):
         return int(len(self.seqs) * self.repeat_time)
-    
+
     def reverse_seq(self, imagelist, lablist):
         if np.random.randint(2) == 1:
             imagelist = imagelist[::-1]
@@ -691,7 +694,7 @@ class YOUTUBEVOS_Train(VOSTrain):
                                                enable_prev_frame,
                                                merge_prob=merge_prob,
                                                max_obj_n=max_obj_n)
-    
+
     def _check_preprocess(self):
         if not os.path.isfile(self.seq_list_file):
             print('No such file: {}.'.format(self.seq_list_file))

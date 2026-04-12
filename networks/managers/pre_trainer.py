@@ -17,6 +17,7 @@ import torch.optim as optim
 
 
 save_dir = os.path.join(BASE_DIR, "pretrain_models")
+print(BASE_DIR)
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler

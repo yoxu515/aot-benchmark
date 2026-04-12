@@ -17,43 +17,42 @@ def setup_seed(seed=42):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-
 def main_worker(local_rank, cfg, args):
-    """
-    Each process runs this
-    """
-    global_rank = local_rank
     world_size = cfg.TRAIN_GPUS
 
-    # ---- Set device ----
-    device_id = cfg.DIST_START_GPU + local_rank
-    torch.cuda.set_device(device_id)
-    device = torch.device(f'cuda:{device_id}')
+    use_cuda = torch.cuda.is_available() and world_size > 0
 
-    # ---- Init process group ----
-    if world_size > 1:
+    # ---- Device handling ----
+    if use_cuda:
+        device_id = cfg.DIST_START_GPU + local_rank
+        torch.cuda.set_device(device_id)
+        device = torch.device(f'cuda:{device_id}')
+    else:
+        device = torch.device('cpu')
+
+    # ---- Init process group (ONLY for multi-GPU CUDA) ----
+    if use_cuda and world_size > 1:
         dist.init_process_group(
             backend='nccl',
             init_method=cfg.DIST_URL,
             world_size=world_size,
-            rank=global_rank
+            rank=local_rank
         )
 
-    # ---- Build trainer ----
+    # ---- Trainer ----
     from networks.managers.pre_trainer import StaticTrainer
     trainer = StaticTrainer(
         cfg,
         device=device,
         local_rank=local_rank,
-        world_size=world_size,
-        use_amp=args.amp
+        world_size=world_size if use_cuda else 1,
+        use_amp=args.amp and use_cuda
     )
 
     trainer.train()
 
-    if world_size > 1:
+    if use_cuda and world_size > 1:
         dist.destroy_process_group()
-
 
 def main():
     parser = argparse.ArgumentParser(description="Static Pretraining (DDP Ready)")
@@ -65,7 +64,7 @@ def main():
 
     # ---- GPU ----
     parser.add_argument('--start_gpu', type=int, default=0)
-    parser.add_argument('--gpu_num', type=int, default=1)
+    parser.add_argument('--gpu_num', type=int, default=-1)
 
     # ---- Training ----
     parser.add_argument('--batch_size', type=int, default=-1)
@@ -87,6 +86,7 @@ def main():
     cfg.DIST_START_GPU = args.start_gpu
     cfg.TRAIN_GPUS = args.gpu_num
 
+
     if args.batch_size > 0:
         cfg.TRAIN_BATCH_SIZE = args.batch_size
 
@@ -99,8 +99,6 @@ def main():
     # ---- DDP URL ----
     cfg.DIST_URL = f"tcp://127.0.0.1:{random.randint(12000, 20000)}"
 
-    print(f"[INFO] GPUs: {cfg.TRAIN_GPUS}")
-    print(f"[INFO] AMP: {args.amp}")
     print(f"[INFO] Starting training...")
 
     # ---- Launch ----
