@@ -30,8 +30,8 @@ class Trainer(object):
         self.device = device if device is not None else torch.device("cpu")
         self.use_cuda = self.device.type == "cuda"
         if not self.use_cuda: cfg.DIST_ENABLE = False
-        self.gpu = rank + cfg.DIST_START_GPU
-        self.gpu_num = cfg.TRAIN_GPUS 
+        self.gpu = self.device.index if self.use_cuda else None
+        self.gpu_num = cfg.TRAIN_GPUS
         self.rank = rank
         self.cfg = cfg
 
@@ -43,7 +43,6 @@ class Trainer(object):
         else:
             print("Using CPU")
         if self.use_cuda:
-            torch.cuda.set_device(self.gpu)
             torch.backends.cudnn.benchmark = True if cfg.DATA_RANDOMCROP[
                 0] == cfg.DATA_RANDOMCROP[
                     1] and 'swin' not in cfg.MODEL_ENCODER else False
@@ -56,23 +55,13 @@ class Trainer(object):
             cfg.MODEL_ENGINE,
             'train',
             aot_model=self.model,
-            gpu_id=self.gpu if self.use_cuda else None,
+            gpu_id=self.device.index if self.use_cuda else None,
             long_term_mem_gap=cfg.TRAIN_LONG_TERM_MEM_GAP
         )
 
         if cfg.MODEL_FREEZE_BACKBONE:
             for param in self.model_encoder.parameters():
                 param.requires_grad = False
-
-        if cfg.DIST_ENABLE:
-            backend = "nccl" if self.use_cuda else "gloo"
-            dist.init_process_group(
-                backend=backend,
-                init_method=cfg.DIST_URL,
-                world_size=cfg.TRAIN_GPUS,
-                rank=rank,
-                timeout=datetime.timedelta(seconds=300)
-            )
 
         if self.use_cuda:
             self.model.encoder = nn.SyncBatchNorm.convert_sync_batchnorm(
@@ -83,8 +72,8 @@ class Trainer(object):
             if self.use_cuda:
                 self.dist_engine = torch.nn.parallel.DistributedDataParallel(
                     self.engine,
-                    device_ids=[self.gpu],
-                    output_device=self.gpu,
+                    device_ids=[self.device.index] if self.use_cuda else None,
+                    output_device=self.device.index if self.use_cuda else None,
                     find_unused_parameters=True,
                     broadcast_buffers=False
                 )
@@ -276,7 +265,7 @@ class Trainer(object):
                         cfg.MODEL_ENCODER_PRETRAIN))
 
     def prepare_dataset(self):
-     
+
         cfg = self.cfg
         print(">>> DATASETS AT RUNTIME:", cfg.DATASETS)
         self.enable_prev_frame = cfg.TRAIN_ENABLE_PREV_FRAME
@@ -474,13 +463,13 @@ class Trainer(object):
                                        dim=0)
                 all_labels = torch.cat([ref_labels, prev_labels] + curr_labels,
                                        dim=0)
-
+                if self.use_cuda: torch.cuda.set_device(self.device.index)
                 self.engine.restart_engine(batch_size, True)
                 optimizer.zero_grad(set_to_none=True)
 
                 if self.enable_amp:
                     with torch.cuda.amp.autocast(enabled=self.enable_amp):
-                        
+
                         loss, all_pred, all_loss, boards = model(
                             all_frames,
                             all_labels,
@@ -492,17 +481,17 @@ class Trainer(object):
                             enable_prev_frame=self.enable_prev_frame,
                             use_prev_prob=use_prev_prob)
                         loss = torch.mean(loss)
-                        
+
                     start = time.time()
                     self.scaler.scale(loss).backward()
                     end = time.time()
-                    print(end-start)
+                    if self.rank == 0: print(end - start)
                     self.scaler.unscale_(optimizer)
                     torch.nn.utils.clip_grad_norm_(model.parameters(),
                                                    cfg.TRAIN_CLIP_GRAD_NORM)
                     self.scaler.step(optimizer)
                     self.scaler.update()
-                    
+
                 else:
                     loss, all_pred, all_loss, boards = model(
                         all_frames,
@@ -530,8 +519,10 @@ class Trainer(object):
                     if self.cfg.DIST_ENABLE:
                         dist.all_reduce(now_loss)
                         dist.all_reduce(now_iou)
-                        now_loss /= self.gpu_num
-                        now_iou /= self.gpu_num
+                        if self.cfg.DIST_ENABLE:
+                            world_size = dist.get_world_size()
+                            now_loss /= world_size
+                            now_iou /= world_size
                     if self.rank == 0:
                         running_losses[idx].update(now_loss.item())
                         running_ious[idx].update(now_iou.item())
@@ -574,7 +565,7 @@ class Trainer(object):
 
                 if step % cfg.TRAIN_SAVE_STEP == 0 and self.rank == 0:
                     if self.use_cuda:
-                        max_mem = torch.cuda.max_memory_allocated(device=self.gpu) / (1024.**3)
+                        max_mem = torch.cuda.max_memory_allocated(device=self.device) / (1024.**3)
                     else:
                         max_mem = 0
                     ETA = str(

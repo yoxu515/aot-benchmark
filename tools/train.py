@@ -1,120 +1,164 @@
 import importlib
+import os
 import random
-import sys
+import numpy as np
 import torch
-import torch.multiprocessing as mp
-
-sys.setrecursionlimit(10000)
-sys.path.append('.')
-sys.path.append('..')
 
 from networks.managers.trainer import Trainer
 
-
-def main_worker(rank, cfg, enable_amp=True):
-    # -------- Device Resolution --------
-    use_cuda = torch.cuda.is_available()
-
-    if use_cuda:
-        gpu_id = rank + cfg.DIST_START_GPU
-        device = torch.device(f"cuda:{gpu_id}")
-    else:
-        device = torch.device("cpu")
-        enable_amp = False  # AMP not supported on CPU
-
-    # -------- Debug Info (important) --------
-    print(f"[INFO] Rank: {rank} | Device: {device} | AMP: {enable_amp}")
-
-    # -------- Trainer Init --------
-    trainer = Trainer(
-        rank=rank,
-        cfg=cfg,
-        enable_amp=enable_amp,
-        device=device  # <-- enforce device injection
-    )
-
-    trainer.sequential_training()
-
-
-def main():
+# ----------------------------
+# Argument Parser
+# ----------------------------
+def parse_args():
     import argparse
-    parser = argparse.ArgumentParser(description="Train VOS")
+    parser = argparse.ArgumentParser("Train VOS")
 
+    # experiment
     parser.add_argument('--exp_name', type=str, default='')
     parser.add_argument('--stage', type=str, default='pre')
     parser.add_argument('--model', type=str, default='aott')
-    parser.add_argument('--max_id_num', type=int, default='-1')
 
-    parser.add_argument('--start_gpu', type=int, default=0)
-    parser.add_argument('--gpu_num', type=int, default=-1)
+    # training overrides
     parser.add_argument('--batch_size', type=int, default=-1)
-    parser.add_argument('--dist_url', type=str, default='')
-    parser.add_argument('--amp', action='store_true')
-    parser.set_defaults(amp=False)
-
-    parser.add_argument('--pretrained_path', type=str, default='')
-    parser.add_argument('--datasets', nargs='+', type=str, default=[])
     parser.add_argument('--lr', type=float, default=-1.)
-    parser.add_argument('--total_step', type=int, default=-1.)
-    parser.add_argument('--start_step', type=int, default=-1.)
+    parser.add_argument('--total_step', type=int, default=-1)
 
-    args = parser.parse_args()
+    # data / pretrained
+    parser.add_argument('--datasets', nargs='+', type=str, default=[])
+    parser.add_argument('--pretrained_path', type=str, default='')
 
-    # -------- Load Config --------
+    # AMP
+    parser.add_argument('--amp', action='store_true')
+
+    return parser.parse_args()
+
+
+# ----------------------------
+# Runtime Setup
+# ----------------------------
+def setup_runtime():
+    use_cuda = torch.cuda.is_available()
+    if torch.cuda.device_count() > 1 and not distributed:
+        raise RuntimeError(
+            "Multiple GPUs detected but not using torchrun. "
+            "Launch with: torchrun --nproc_per_node=N train.py"
+        )
+    # CPU fallback
+    if not use_cuda:
+        return {
+            "device": torch.device("cpu"),
+            "rank": 0,
+            "world_size": 1,
+            "distributed": False
+        }
+
+    # DDP via torchrun
+    if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
+        import torch.distributed as dist
+
+        rank = int(os.environ["RANK"])
+        world_size = int(os.environ["WORLD_SIZE"])
+        local_rank = int(os.environ["LOCAL_RANK"])
+
+        torch.cuda.set_device(local_rank)
+        dist.init_process_group(backend="nccl")
+
+        device = torch.device("cuda", local_rank)
+
+        return {
+            "device": device,
+            "rank": rank,
+            "world_size": world_size,
+            "distributed": True
+        }
+
+    # Single GPU fallback
+    torch.cuda.set_device(0)
+    return {
+        "device": torch.device("cuda:0"),
+        "rank": 0,
+        "world_size": 1,
+        "distributed": False
+    }
+
+
+# ----------------------------
+# Seeding (per-rank)
+# ----------------------------
+def set_seed(base_seed, rank):
+    seed = base_seed + rank
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.backends.cudnn.deterministic = False
+        torch.backends.cudnn.benchmark = True
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
+
+# ----------------------------
+# Main
+# ----------------------------
+def main():
+    args = parse_args()
+
+    # -------- Load config --------
     engine_config = importlib.import_module('configs.' + args.stage)
     cfg = engine_config.EngineConfig(args.exp_name, args.model)
 
-    # -------- Override Config --------
-    if len(args.datasets) > 0:
+    # -------- Override config --------
+    if args.datasets:
         cfg.DATASETS = args.datasets
-
-    cfg.DIST_START_GPU = args.start_gpu
-
-    if args.gpu_num > 0:
-        cfg.TRAIN_GPUS = args.gpu_num
-
     if args.batch_size > 0:
         cfg.TRAIN_BATCH_SIZE = args.batch_size
-
-    if args.pretrained_path != '':
-        cfg.PRETRAIN_MODEL = args.pretrained_path
-
-    if args.max_id_num > 0:
-        cfg.MODEL_MAX_OBJ_NUM = args.max_id_num
-
     if args.lr > 0:
         cfg.TRAIN_LR = args.lr
-
     if args.total_step > 0:
         cfg.TRAIN_TOTAL_STEPS = args.total_step
+    if args.pretrained_path:
+        cfg.PRETRAIN_MODEL = args.pretrained_path
 
-    if args.start_step > 0:
-        cfg.TRAIN_START_STEP = args.start_step
+    # -------- Runtime --------
+    runtime = setup_runtime()
 
-    # -------- Dist URL --------
-    if args.dist_url == '':
-        cfg.DIST_URL = 'tcp://127.0.0.1:123' + str(random.randint(0, 99))
-    else:
-        cfg.DIST_URL = args.dist_url
+    device = runtime["device"]
+    rank = runtime["rank"]
+    world_size = runtime["world_size"]
+    distributed = runtime["distributed"]
 
-    # -------- Device Mode Decision --------
-    use_cuda = torch.cuda.is_available()
+    cfg.TRAIN_GPUS = world_size
+    cfg.DIST_ENABLE = distributed
 
-    if not use_cuda:
-        print("[INFO] CUDA not available → Running on CPU")
-        cfg.TRAIN_GPUS = 0
-        main_worker(0, cfg, enable_amp=False)
+    # -------- Seeding --------
+    set_seed(42, rank)
 
-    elif cfg.TRAIN_GPUS > 1:
-        print(f"[INFO] Multi-GPU Training on {cfg.TRAIN_GPUS} GPUs")
-        mp.spawn(main_worker, nprocs=cfg.TRAIN_GPUS, args=(cfg, args.amp))
+    # -------- Logging --------
+    if rank == 0:
+        print(f"[INFO] Rank {rank} | Device {device} | World Size {world_size}")
 
-    else:
-        print("[INFO] Single GPU Training")
-        cfg.TRAIN_GPUS = 1
-        main_worker(0, cfg, enable_amp=args.amp)
+    # -------- AMP --------
+    enable_amp = args.amp and device.type == "cuda"
+
+    # -------- Trainer --------
+    trainer = Trainer(
+        rank=rank,
+        world_size=world_size,
+        cfg=cfg,
+        enable_amp=enable_amp,
+        device=device
+    )
+
+    # -------- Train --------
+    trainer.sequential_training()
+
+    # -------- Cleanup --------
+    if distributed:
+        import torch.distributed as dist
+        dist.barrier()
+        dist.destroy_process_group()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-    
