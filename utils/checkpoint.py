@@ -9,7 +9,6 @@ def get_device(gpu=None):
         return torch.device(f"cuda:{gpu}" if gpu is not None else "cuda")
     return torch.device("cpu")
 
-
 def load_network_and_optimizer(net, opt, pretrained_dir, gpu=None, scaler=None):
     device = get_device(gpu)
     pretrained = torch.load(pretrained_dir, map_location=device, weights_only=False)

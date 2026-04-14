@@ -17,7 +17,6 @@ import torch.optim as optim
 
 
 save_dir = os.path.join(BASE_DIR, "pretrain_models")
-print(BASE_DIR)
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
@@ -120,6 +119,7 @@ class StaticTrainer:
                 self.sampler.set_epoch(self.step)
 
             for sample in self.loader:
+                print(f"Step {self.step}")
                 if self.step >= cfg.TRAIN_TOTAL_STEPS:
                     break
 

@@ -24,7 +24,7 @@ python tools/train.py --amp \
 	--exp_name ${exp} \
 	--stage ${stage} \
 	--model ${model} \
-	--gpu_num ${gpu_num}
+	--gpu_num ${gpu_num} \
 	--pretrained_path ${pretrain_ckpt}
 
 ## Evaluation ##
