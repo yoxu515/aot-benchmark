@@ -8,7 +8,6 @@ from collections.abc import Sequence
 
 import torch
 import torchvision.transforms.functional as TF
-from torchvision.transforms import InterpolationMode
 
 _pil_interpolation_to_str = {
     Image.NEAREST: 'PIL.Image.NEAREST',
@@ -125,8 +124,8 @@ class RandomAffine(object):
                  translate=None,
                  scale=None,
                  shear=None,
-                 interpolation=InterpolationMode.BILINEAR,
-                 fill=0):
+                 resample=False,
+                 fillcolor=0):
         if isinstance(degrees, numbers.Number):
             if degrees < 0:
                 raise ValueError(
@@ -172,8 +171,8 @@ class RandomAffine(object):
         else:
             self.shear = shear
 
-        self.interpolation = interpolation
-        self.fill = fill
+        self.resample = resample
+        self.fillcolor = fillcolor
 
     @staticmethod
     def get_params(degrees, translate, scale_ranges, shears, img_size):
@@ -218,19 +217,11 @@ class RandomAffine(object):
         """
         ret = self.get_params(self.degrees, self.translate, self.scale,
                               self.shear, img.size)
-        img = TF.affine(
-            img,
-            *ret,
-            interpolation=self.interpolation,
-            fill=self.fill
-        )
-
-        mask = TF.affine(
-            mask,
-            *ret,
-            interpolation=InterpolationMode.NEAREST,
-            fill=0
-        )
+        img = TF.affine(img,
+                        *ret,
+                        resample=self.resample,
+                        fillcolor=self.fillcolor)
+        mask = TF.affine(mask, *ret, resample=Image.NEAREST, fillcolor=0)
         return img, mask
 
     def __repr__(self):
@@ -241,15 +232,13 @@ class RandomAffine(object):
             s += ', scale={scale}'
         if self.shear is not None:
             s += ', shear={shear}'
-        if self.interpolation is not None:
-            s += ', interpolation={interpolation}'
-        if self.fill != 0:
-            s += ', fill={fill}'
+        if self.resample > 0:
+            s += ', resample={resample}'
+        if self.fillcolor != 0:
+            s += ', fillcolor={fillcolor}'
         s += ')'
-
         d = dict(self.__dict__)
-        d['interpolation'] = str(self.interpolation)
-
+        d['resample'] = _pil_interpolation_to_str[d['resample']]
         return s.format(name=self.__class__.__name__, **d)
 
 
