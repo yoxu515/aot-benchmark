@@ -5,16 +5,15 @@ import json
 import random
 import cv2
 from PIL import Image
+from torchvision.transforms import InterpolationMode
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as TF
-
 import dataloaders.image_transforms as IT
 
 cv2.setNumThreads(0)
-
 
 def _get_images(sample):
     return [sample['ref_img'], sample['prev_img']] + sample['curr_img']
@@ -149,13 +148,14 @@ class StaticTrain(Dataset):
             self.blur = TF.RandomApply([IT.GaussianBlur([.1, 2.])], p=0.3)
         else:
             assert NotImplementedError
-
-        self.random_affine = IT.RandomAffine(degrees=20,
-                                             translate=(0.1, 0.1),
-                                             scale=(0.9, 1.1),
-                                             shear=10,
-                                             resample=Image.BICUBIC,
-                                             fillcolor=(124, 116, 104))
+        self.random_affine = IT.RandomAffine(
+            degrees=20,
+            translate=(0.1, 0.1),
+            scale=(0.9, 1.1),
+            shear=10,
+            interpolation=InterpolationMode.BICUBIC,
+            fill=(124, 116, 104)
+        )
         base_ratio = float(output_size[1]) / output_size[0]
         self.random_resize_crop = IT.RandomResizedCrop(
             output_size, (0.8, 1),
@@ -735,4 +735,3 @@ class TEST(Dataset):
         if self.transform is not None:
             sample = self.transform(sample)
         return sample
-
