@@ -1,10 +1,14 @@
 import importlib
 import os
+import sys
 import random
 import numpy as np
 import torch
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from networks.managers.trainer import Trainer
+sys.path.append('.')
+sys.path.append('..')
 
 # ----------------------------
 # Argument Parser
@@ -38,11 +42,6 @@ def parse_args():
 # ----------------------------
 def setup_runtime():
     use_cuda = torch.cuda.is_available()
-    if torch.cuda.device_count() > 1 and not distributed:
-        raise RuntimeError(
-            "Multiple GPUs detected but not using torchrun. "
-            "Launch with: torchrun --nproc_per_node=N train.py"
-        )
     # CPU fallback
     if not use_cuda:
         return {
