@@ -107,8 +107,7 @@ class DefaultEngineConfig():
         self.DIST_START_GPU = 0
 
     def init_dir(self):
-        BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        self.DIR_DATA = 'datasets'
+        self.DIR_DATA = '../VOS02/datasets'#'./datasets'
         self.DIR_DAVIS = os.path.join(self.DIR_DATA, 'DAVIS')
         self.DIR_YTB = os.path.join(self.DIR_DATA, 'YTB')
         self.DIR_STATIC = os.path.join(self.DIR_DATA, 'Static')
