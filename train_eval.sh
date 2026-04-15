@@ -18,12 +18,11 @@ python tools/train.py --amp \
 	--gpu_num ${gpu_num}
 
 stage="pre_ytb_dav"
-# Single GPU
-python tools/train.py --exp_name ${exp} --stage ${stage} --model ${model}
-
-# Multi-GPU
-torchrun --nproc_per_node=4 tools/train.py --exp_name ${exp} --stage ${stage} --model ${model}
-
+python tools/train.py --amp \
+	--exp_name ${exp} \
+	--stage ${stage} \
+	--model ${model} \
+	--gpu_num ${gpu_num}
 
 ## Evaluation ##
 dataset="davis2017"

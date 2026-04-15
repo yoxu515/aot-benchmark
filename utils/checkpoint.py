@@ -4,13 +4,14 @@ import numpy as np
 from pathlib import Path
 
 
-def get_device(device):
-    if not isinstance(device, torch.device):
-        raise TypeError("device must be torch.device")
-    return device
+def get_device(gpu=None):
+    if torch.cuda.is_available():
+        return torch.device(f"cuda:{gpu}" if gpu is not None else "cuda")
+    return torch.device("cpu")
 
-def load_network_and_optimizer(net, opt, pretrained_dir,  device=None, scaler=None):
-    device = get_device(device)
+
+def load_network_and_optimizer(net, opt, pretrained_dir, gpu=None, scaler=None):
+    device = get_device(gpu)
     pretrained = torch.load(pretrained_dir, map_location=device, weights_only=False)
 
     pretrained_dict = pretrained['state_dict']
@@ -39,8 +40,8 @@ def load_network_and_optimizer(net, opt, pretrained_dir,  device=None, scaler=No
     return net.to(device), opt, pretrained_dict_remove
 
 
-def load_network_and_optimizer_v2(net, opt, pretrained_dir,  device=None, scaler=None):
-    device = get_device(device)
+def load_network_and_optimizer_v2(net, opt, pretrained_dir, gpu=None, scaler=None):
+    device = get_device(gpu)
     pretrained = torch.load(pretrained_dir, map_location=device, weights_only=False)
 
     pretrained_dict = pretrained['state_dict']
@@ -90,8 +91,8 @@ def load_network_and_optimizer_v2(net, opt, pretrained_dir,  device=None, scaler
     return net.to(device), opt, pretrained_dict_remove
 
 
-def load_network(net, pretrained_dir, device=None):
-    device = get_device(device)
+def load_network(net, pretrained_dir, gpu=None):
+    device = get_device(gpu)
     pretrained = torch.load(pretrained_dir, map_location=device, weights_only=False)
 
     if 'state_dict' in pretrained:
