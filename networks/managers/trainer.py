@@ -26,22 +26,22 @@ from networks.engines import build_engine
 
 
 class Trainer(object):
-    def __init__(self, rank, cfg, enable_amp=True, device=None):
+    def __init__(self, rank, cfg, enable_amp=True, device=None, world_size=1):
         self.device = device if device is not None else torch.device("cpu")
         self.use_cuda = self.device.type == "cuda"
         if not self.use_cuda: cfg.DIST_ENABLE = False
-        self.gpu = self.device.index if self.use_cuda else None
-        self.gpu_num = cfg.TRAIN_GPUS
+        self.world_size = world_size
         self.rank = rank
         self.cfg = cfg
 
         self.print_log("Exp {}:".format(cfg.EXP_NAME))
         self.print_log(json.dumps(cfg.__dict__, indent=4, sort_keys=True))
 
-        if self.use_cuda:
-            print(f"Using CUDA:{self.gpu}")
-        else:
-            print("Using CPU")
+        if self.rank == 0:
+            if self.use_cuda:
+                print(f"Using CUDA:{self.gpu}")
+            else:
+                print("Using CPU")
         if self.use_cuda:
             torch.backends.cudnn.benchmark = True if cfg.DATA_RANDOMCROP[
                 0] == cfg.DATA_RANDOMCROP[
