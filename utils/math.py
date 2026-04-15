@@ -34,3 +34,4 @@ def truncated_normal_(tensor, mean=0., std=0.02):
         tensor.copy_(tmp.gather(-1, ind).squeeze(-1))
         tensor.mul_(std).add_(mean)
     return tensor
+
