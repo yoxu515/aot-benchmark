@@ -28,7 +28,7 @@ from networks.engines import build_engine
 class Trainer(object):
     def __init__(self, rank, cfg, enable_amp=True):
         self.gpu = rank + cfg.DIST_START_GPU
-        self.gpu_num = cfg.TRAIN_GPUS
+        self.gpu_num = cfg.TRAIN_GPUS 
         self.rank = rank
         self.cfg = cfg
 
@@ -459,7 +459,7 @@ class Trainer(object):
 
                 if self.enable_amp:
                     with torch.cuda.amp.autocast(enabled=True):
-
+                        
                         loss, all_pred, all_loss, boards = model(
                             all_frames,
                             all_labels,
@@ -471,7 +471,7 @@ class Trainer(object):
                             enable_prev_frame=self.enable_prev_frame,
                             use_prev_prob=use_prev_prob)
                         loss = torch.mean(loss)
-
+                        
                     start = time.time()
                     self.scaler.scale(loss).backward()
                     end = time.time()
@@ -481,7 +481,7 @@ class Trainer(object):
                                                    cfg.TRAIN_CLIP_GRAD_NORM)
                     self.scaler.step(optimizer)
                     self.scaler.update()
-
+                    
                 else:
                     loss, all_pred, all_loss, boards = model(
                         all_frames,
