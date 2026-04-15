@@ -1,5 +1,5 @@
 exp="default"
-gpu_num="4"  
+gpu_num="4"
 #in case of no gpu, just don't include this argument
 
 model="aott"
@@ -16,13 +16,14 @@ python tools/train.py --amp \
 	--stage ${stage} \
 	--model ${model} \
 	--gpu_num ${gpu_num}
-	
+
 stage="pre_ytb_dav"
-python tools/train.py --amp \
-	--exp_name ${exp} \
-	--stage ${stage} \
-	--model ${model} \
-	--gpu_num ${gpu_num}
+# Single GPU
+python tools/train.py --exp_name ${exp} --stage ${stage} --model ${model}
+
+# Multi-GPU
+torchrun --nproc_per_node=4 tools/train.py --exp_name ${exp} --stage ${stage} --model ${model}
+
 
 ## Evaluation ##
 dataset="davis2017"

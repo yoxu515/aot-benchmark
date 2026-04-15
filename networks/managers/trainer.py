@@ -26,52 +26,60 @@ from networks.engines import build_engine
 
 
 class Trainer(object):
-    def __init__(self, rank, cfg, enable_amp=True):
-        self.gpu = rank + cfg.DIST_START_GPU
-        self.gpu_num = cfg.TRAIN_GPUS 
+    def __init__(self, rank, cfg, enable_amp=True, device=None, world_size=1):
+        self.device = device if device is not None else torch.device("cpu")
+        self.use_cuda = self.device.type == "cuda"
+        if not self.use_cuda: cfg.DIST_ENABLE = False
+        self.world_size = world_size
         self.rank = rank
         self.cfg = cfg
+
 
         self.print_log("Exp {}:".format(cfg.EXP_NAME))
         self.print_log(json.dumps(cfg.__dict__, indent=4, sort_keys=True))
 
-        print("Use GPU {} for training VOS.".format(self.gpu))
-        torch.cuda.set_device(self.gpu)
-        torch.backends.cudnn.benchmark = True if cfg.DATA_RANDOMCROP[
-            0] == cfg.DATA_RANDOMCROP[
-                1] and 'swin' not in cfg.MODEL_ENCODER else False
+        if self.rank == 0:
+            if self.use_cuda:
+                print(f"Using CUDA:{self.gpu}")
+            else:
+                print("Using CPU")
+        if self.use_cuda:
+            torch.backends.cudnn.benchmark = True if cfg.DATA_RANDOMCROP[
+                0] == cfg.DATA_RANDOMCROP[
+                    1] and 'swin' not in cfg.MODEL_ENCODER else False
 
         self.print_log('Build VOS model.')
 
-        self.model = build_vos_model(cfg.MODEL_VOS, cfg).cuda(self.gpu)
+        self.model = build_vos_model(cfg.MODEL_VOS, cfg).to(self.device)
         self.model_encoder = self.model.encoder
         self.engine = build_engine(
             cfg.MODEL_ENGINE,
             'train',
             aot_model=self.model,
-            gpu_id=self.gpu,
-            long_term_mem_gap=cfg.TRAIN_LONG_TERM_MEM_GAP)
+            gpu_id=self.device.index if self.use_cuda else None,
+            long_term_mem_gap=cfg.TRAIN_LONG_TERM_MEM_GAP
+        )
 
         if cfg.MODEL_FREEZE_BACKBONE:
             for param in self.model_encoder.parameters():
                 param.requires_grad = False
 
-        if cfg.DIST_ENABLE:
-            dist.init_process_group(backend=cfg.DIST_BACKEND,
-                                    init_method=cfg.DIST_URL,
-                                    world_size=cfg.TRAIN_GPUS,
-                                    rank=rank,
-                                    timeout=datetime.timedelta(seconds=300))
-
+        if self.use_cuda:
             self.model.encoder = nn.SyncBatchNorm.convert_sync_batchnorm(
-                self.model.encoder).cuda(self.gpu)
+                self.model.encoder
+            ).to(self.device)
 
-            self.dist_engine = torch.nn.parallel.DistributedDataParallel(
-                self.engine,
-                device_ids=[self.gpu],
-                output_device=self.gpu,
-                find_unused_parameters=True,
-                broadcast_buffers=False)
+        if cfg.DIST_ENABLE:
+            if self.use_cuda:
+                self.dist_engine = torch.nn.parallel.DistributedDataParallel(
+                    self.engine,
+                    device_ids=[self.device.index] if self.use_cuda else None,
+                    output_device=self.device.index if self.use_cuda else None,
+                    find_unused_parameters=True,
+                    broadcast_buffers=False
+                )
+            else:
+                self.dist_engine = torch.nn.parallel.DistributedDataParallel(self.engine)
         else:
             self.dist_engine = self.engine
 
@@ -80,6 +88,7 @@ class Trainer(object):
             self.print_log('Use LN in Encoder!')
         elif not cfg.MODEL_FREEZE_BN:
             if cfg.DIST_ENABLE:
+
                 self.print_log('Use Sync BN in Encoder!')
             else:
                 self.print_log('Use BN in Encoder!')
@@ -120,8 +129,9 @@ class Trainer(object):
                                          lr=cfg.TRAIN_LR,
                                          weight_decay=cfg.TRAIN_WEIGHT_DECAY)
 
-        self.enable_amp = enable_amp
-        if enable_amp:
+        self.enable_amp = enable_amp and self.use_cuda
+
+        if self.enable_amp:
             self.scaler = torch.cuda.amp.GradScaler()
         else:
             self.scaler = None
@@ -159,7 +169,7 @@ class Trainer(object):
                             self.ema_dir,
                             'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
                         ema_model, removed_dict = load_network(
-                            self.model, ema_ckpt_dir, self.gpu)
+                            self.model, ema_ckpt_dir, self.device)
                     except Exception as inst:
                         self.print_log(inst)
                         self.print_log('Try to use backup EMA checkpoint.')
@@ -170,7 +180,7 @@ class Trainer(object):
                             DIR_EMA_CKPT,
                             'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
                         ema_model, removed_dict = load_network(
-                            self.model, ema_ckpt_dir, self.gpu)
+                            self.model, ema_ckpt_dir, self.device)
 
                     if len(removed_dict) > 0:
                         self.print_log(
@@ -194,7 +204,7 @@ class Trainer(object):
                     self.model,
                     self.optimizer,
                     resume_ckpt,
-                    self.gpu,
+                    self.device,
                     scaler=self.scaler)
             except Exception as inst:
                 self.print_log(inst)
@@ -208,7 +218,7 @@ class Trainer(object):
                     self.model,
                     self.optimizer,
                     resume_ckpt,
-                    self.gpu,
+                    self.device,
                     scaler=self.scaler)
 
             if len(removed_dict) > 0:
@@ -227,7 +237,7 @@ class Trainer(object):
             if cfg.PRETRAIN_FULL:
                 try:
                     self.model, removed_dict = load_network(
-                        self.model, cfg.PRETRAIN_MODEL, self.gpu)
+                        self.model, cfg.PRETRAIN_MODEL, self.device)
                 except Exception as inst:
                     self.print_log(inst)
                     self.print_log('Try to use backup EMA checkpoint.')
@@ -238,7 +248,7 @@ class Trainer(object):
                         DIR_EMA_CKPT,
                         cfg.PRETRAIN_MODEL.split('/')[-1])
                     self.model, removed_dict = load_network(
-                        self.model, PRETRAIN_MODEL, self.gpu)
+                        self.model, PRETRAIN_MODEL, self.device)
 
                 if len(removed_dict) > 0:
                     self.print_log('Remove {} from pretrained model.'.format(
@@ -247,7 +257,7 @@ class Trainer(object):
                     cfg.PRETRAIN_MODEL))
             else:
                 model_encoder, removed_dict = load_network(
-                    self.model_encoder, cfg.MODEL_ENCODER_PRETRAIN, self.gpu)
+                    self.model_encoder, cfg.MODEL_ENCODER_PRETRAIN,self.device)
                 if len(removed_dict) > 0:
                     self.print_log('Remove {} from pretrained model.'.format(
                         removed_dict))
@@ -256,7 +266,9 @@ class Trainer(object):
                         cfg.MODEL_ENCODER_PRETRAIN))
 
     def prepare_dataset(self):
+
         cfg = self.cfg
+        print(">>> DATASETS AT RUNTIME:", cfg.DATASETS)
         self.enable_prev_frame = cfg.TRAIN_ENABLE_PREV_FRAME
 
         self.print_log('Process dataset...')
@@ -330,7 +342,6 @@ class Trainer(object):
             test_dataset = TEST(transform=composed_transforms,
                                 seq_len=cfg.DATA_SEQ_LEN)
             train_datasets.append(test_dataset)
-
         if len(train_datasets) > 1:
             train_dataset = torch.utils.data.ConcatDataset(train_datasets)
         elif len(train_datasets) == 1:
@@ -341,15 +352,15 @@ class Trainer(object):
 
         self.train_sampler = torch.utils.data.distributed.DistributedSampler(
             train_dataset) if self.cfg.DIST_ENABLE else None
+        effective_gpus = max(cfg.TRAIN_GPUS, 1)
         self.train_loader = DataLoader(train_dataset,
-                                       batch_size=int(cfg.TRAIN_BATCH_SIZE /
-                                                      cfg.TRAIN_GPUS),
+                                       batch_size = int(cfg.TRAIN_BATCH_SIZE / effective_gpus),
                                        shuffle=False if self.cfg.DIST_ENABLE else True,
                                        num_workers=cfg.DATA_WORKERS,
-                                       pin_memory=True,
+                                       pin_memory=self.use_cuda,
                                        sampler=self.train_sampler,
                                        drop_last=True,
-                                       prefetch_factor=4)
+                                       prefetch_factor=4 if cfg.DATA_WORKERS > 0 else None)
 
         self.print_log('Done!')
 
@@ -389,7 +400,7 @@ class Trainer(object):
         self.print_log('Start training:')
         model.train()
         while step < cfg.TRAIN_TOTAL_STEPS:
-            if self.cfg.DIST_ENABLE:
+            if self.cfg.DIST_ENABLE and train_sampler is not None:
                 train_sampler.set_epoch(epoch)
             epoch += 1
             last_time = time.time()
@@ -432,16 +443,16 @@ class Trainer(object):
                 obj_nums = sample['meta']['obj_num']
                 bs, _, h, w = curr_imgs[0].size()
 
-                ref_imgs = ref_imgs.cuda(self.gpu, non_blocking=True)
-                prev_imgs = prev_imgs.cuda(self.gpu, non_blocking=True)
+                ref_imgs = ref_imgs.to(self.device, non_blocking=self.use_cuda)
+                prev_imgs = prev_imgs.to(self.device, non_blocking=self.use_cuda)
                 curr_imgs = [
-                    curr_img.cuda(self.gpu, non_blocking=True)
+                    curr_img.to(self.device, non_blocking=self.use_cuda)
                     for curr_img in curr_imgs
                 ]
-                ref_labels = ref_labels.cuda(self.gpu, non_blocking=True)
-                prev_labels = prev_labels.cuda(self.gpu, non_blocking=True)
+                ref_labels = ref_labels.to(self.device, non_blocking=self.use_cuda)
+                prev_labels = prev_labels.to(self.device, non_blocking=self.use_cuda)
                 curr_labels = [
-                    curr_label.cuda(self.gpu, non_blocking=True)
+                    curr_label.to(self.device, non_blocking=self.use_cuda)
                     for curr_label in curr_labels
                 ]
                 obj_nums = list(obj_nums)
@@ -453,13 +464,13 @@ class Trainer(object):
                                        dim=0)
                 all_labels = torch.cat([ref_labels, prev_labels] + curr_labels,
                                        dim=0)
-
+                if self.use_cuda: torch.cuda.set_device(self.device.index)
                 self.engine.restart_engine(batch_size, True)
                 optimizer.zero_grad(set_to_none=True)
 
                 if self.enable_amp:
-                    with torch.cuda.amp.autocast(enabled=True):
-                        
+                    with torch.cuda.amp.autocast(enabled=self.enable_amp):
+
                         loss, all_pred, all_loss, boards = model(
                             all_frames,
                             all_labels,
@@ -471,17 +482,17 @@ class Trainer(object):
                             enable_prev_frame=self.enable_prev_frame,
                             use_prev_prob=use_prev_prob)
                         loss = torch.mean(loss)
-                        
+
                     start = time.time()
                     self.scaler.scale(loss).backward()
                     end = time.time()
-                    print(end-start)
+                    if self.rank == 0: print(end - start)
                     self.scaler.unscale_(optimizer)
                     torch.nn.utils.clip_grad_norm_(model.parameters(),
                                                    cfg.TRAIN_CLIP_GRAD_NORM)
                     self.scaler.step(optimizer)
                     self.scaler.update()
-                    
+
                 else:
                     loss, all_pred, all_loss, boards = model(
                         all_frames,
@@ -509,14 +520,17 @@ class Trainer(object):
                     if self.cfg.DIST_ENABLE:
                         dist.all_reduce(now_loss)
                         dist.all_reduce(now_iou)
-                        now_loss /= self.gpu_num
-                        now_iou /= self.gpu_num
+                        if self.cfg.DIST_ENABLE:
+                            world_size = dist.get_world_size()
+                            now_loss /= world_size
+                            now_iou /= world_size
                     if self.rank == 0:
                         running_losses[idx].update(now_loss.item())
                         running_ious[idx].update(now_iou.item())
 
                 if self.rank == 0:
-                    self.ema.update(self.ema_params)
+                    if hasattr(self, "ema"):
+                        self.ema.update(self.ema_params)
 
                     avg_obj.update(sum(obj_nums) / float(len(obj_nums)))
                     curr_time = time.time()
@@ -551,8 +565,10 @@ class Trainer(object):
                 step += 1
 
                 if step % cfg.TRAIN_SAVE_STEP == 0 and self.rank == 0:
-                    max_mem = torch.cuda.max_memory_allocated(
-                        device=self.gpu) / (1024.**3)
+                    if self.use_cuda:
+                        max_mem = torch.cuda.max_memory_allocated(device=self.device) / (1024.**3)
+                    else:
+                        max_mem = 0
                     ETA = str(
                         datetime.timedelta(
                             seconds=int(batch_time.moving_avg *
@@ -569,7 +585,8 @@ class Trainer(object):
                                      cfg.EXP_NAME, cfg.STAGE_NAME),
                                  scaler=self.scaler)
                     try:
-                        torch.cuda.empty_cache()
+                        if self.use_cuda:
+                            torch.cuda.empty_cache()
                         # First save original parameters before replacing with EMA version
                         self.ema.store(self.ema_params)
                         # Copy EMA parameters to model
