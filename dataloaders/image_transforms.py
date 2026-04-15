@@ -18,10 +18,13 @@ _pil_interpolation_to_str = {
     Image.HAMMING: 'PIL.Image.HAMMING',
     Image.BOX: 'PIL.Image.BOX',
 }
-
+def _interp_to_str(interp):
+    if isinstance(interp, InterpolationMode):
+        return str(interp)
+    return _pil_interpolation_to_str.get(interp, str(interp))
 
 def _get_image_size(img):
-    if TF._is_pil_image(img):
+    if isinstance(img, Image.Image):
         return img.size
     elif isinstance(img, torch.Tensor) and img.dim() > 2:
         return img.shape[-2:][::-1]
@@ -186,8 +189,10 @@ class RandomAffine(object):
         if translate is not None:
             max_dx = translate[0] * img_size[0]
             max_dy = translate[1] * img_size[1]
-            translations = (np.round(random.uniform(-max_dx, max_dx)),
-                            np.round(random.uniform(-max_dy, max_dy)))
+            translations = (
+                int(round(random.uniform(-max_dx, max_dx))),
+                int(round(random.uniform(-max_dy, max_dy)))
+            )
         else:
             translations = (0, 0)
 
@@ -234,21 +239,19 @@ class RandomAffine(object):
         return img, mask
 
     def __repr__(self):
-        s = '{name}(degrees={degrees}'
+        s = f"{self.__class__.__name__}(degrees={self.degrees}"
+
         if self.translate is not None:
-            s += ', translate={translate}'
+            s += f", translate={self.translate}"
         if self.scale is not None:
-            s += ', scale={scale}'
+            s += f", scale={self.scale}"
         if self.shear is not None:
-            s += ', shear={shear}'
-        if self.resample > 0:
-            s += ', resample={resample}'
-        if self.fillcolor != 0:
-            s += ', fillcolor={fillcolor}'
-        s += ')'
-        d = dict(self.__dict__)
-        d['resample'] = _pil_interpolation_to_str[d['resample']]
-        return s.format(name=self.__class__.__name__, **d)
+            s += f", shear={self.shear}"
+
+        s += f", interpolation={self.interpolation}"
+        s += f", fill={self.fill})"
+
+        return s
 
 
 class RandomCrop(object):
@@ -314,8 +317,12 @@ class RandomCrop(object):
         """
         w, h = _get_image_size(img)
         th, tw = output_size
+
         if w == tw and h == th:
             return 0, 0, h, w
+
+        if h < th or w < tw:
+            raise ValueError(f"Crop size {output_size} larger than image {(h, w)}")
 
         i = random.randint(0, h - th)
         j = random.randint(0, w - tw)
@@ -362,13 +369,13 @@ class RandomResizedCrop(object):
         size: expected output size of each edge
         scale: range of size of the origin size cropped
         ratio: range of aspect ratio of the origin aspect ratio cropped
-        interpolation: Default: PIL.Image.BILINEAR
+        interpolation: Default: Interpolation.BILINEAR
     """
     def __init__(self,
                  size,
                  scale=(0.08, 1.0),
                  ratio=(3. / 4., 4. / 3.),
-                 interpolation=Image.BILINEAR):
+                 interpolation=InterpolationMode.BILINEAR):
         if isinstance(size, (tuple, list)):
             self.size = size
         else:
@@ -439,7 +446,7 @@ class RandomResizedCrop(object):
         return img, mask
 
     def __repr__(self):
-        interpolate_str = _pil_interpolation_to_str[self.interpolation]
+        interpolate_str = _interp_to_str(self.interpolation)
         format_string = self.__class__.__name__ + '(size={0}'.format(self.size)
         format_string += ', scale={0}'.format(
             tuple(round(s, 4) for s in self.scale))
@@ -510,7 +517,7 @@ class Resize(torch.nn.Module):
             Default is ``PIL.Image.BILINEAR``. If input is Tensor, only ``PIL.Image.NEAREST``, ``PIL.Image.BILINEAR``
             and ``PIL.Image.BICUBIC`` are supported.
     """
-    def __init__(self, size, interpolation=Image.BILINEAR):
+    def __init__(self, size, interpolation=InterpolationMode.BILINEAR):
         super().__init__()
         if not isinstance(size, (int, Sequence)):
             raise TypeError("Size should be int or sequence. Got {}".format(
@@ -534,6 +541,7 @@ class Resize(torch.nn.Module):
         return img, mask
 
     def __repr__(self):
-        interpolate_str = _pil_interpolation_to_str[self.interpolation]
+        interpolate_str = _interp_to_str(self.interpolation)
+
         return self.__class__.__name__ + '(size={0}, interpolation={1})'.format(
             self.size, interpolate_str)
