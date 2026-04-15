@@ -34,6 +34,7 @@ class Trainer(object):
         self.rank = rank
         self.cfg = cfg
 
+
         self.print_log("Exp {}:".format(cfg.EXP_NAME))
         self.print_log(json.dumps(cfg.__dict__, indent=4, sort_keys=True))
 
