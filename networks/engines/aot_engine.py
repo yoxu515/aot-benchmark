@@ -14,7 +14,7 @@ class AOTEngine(nn.Module):
     def __init__(self,
                  aot_model,
                  gpu_id=0,
-                 long_term_mem_gap=9999,
+                 long_term_mem_gap=None,
                  short_term_mem_skip=1):
         super().__init__()
 
@@ -331,9 +331,12 @@ class AOTEngine(nn.Module):
             -self.short_term_mem_skip:]
         self.short_term_memories = self.short_term_memories_list[0]
 
-        if self.frame_step - self.last_mem_step >= self.long_term_mem_gap:
+        if (
+            self.long_term_mem_gap is not None and
+            self.frame_step - self.last_mem_step >= self.long_term_mem_gap
+        ):
             # skip the update of long-term memory or not
-            if not skip_long_term_update: 
+            if not skip_long_term_update:
                 self.update_long_term_memory(lstt_curr_memories)
             self.last_mem_step = self.frame_step
 
@@ -486,7 +489,7 @@ class AOTInferEngine(nn.Module):
     def __init__(self,
                  aot_model,
                  gpu_id=0,
-                 long_term_mem_gap=9999,
+                 long_term_mem_gap=None,
                  short_term_mem_skip=1,
                  max_aot_obj_num=None):
         super().__init__()
@@ -626,7 +629,7 @@ class AOTInferEngine(nn.Module):
         separated_masks, _ = self.separate_mask(curr_mask, self.obj_nums)
         for aot_engine, separated_mask in zip(self.aot_engines,
                                               separated_masks):
-            aot_engine.update_short_term_memory(separated_mask, 
+            aot_engine.update_short_term_memory(separated_mask,
                                                 skip_long_term_update=skip_long_term_update)
 
     def update_size(self):
