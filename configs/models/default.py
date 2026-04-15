@@ -1,3 +1,5 @@
+import os
+
 class DefaultModelConfig():
     def __init__(self):
         self.MODEL_NAME = 'AOTDefault'
@@ -6,7 +8,11 @@ class DefaultModelConfig():
         self.MODEL_ENGINE = 'aotengine'
         self.MODEL_ALIGN_CORNERS = True
         self.MODEL_ENCODER = 'mobilenetv2'
-        self.MODEL_ENCODER_PRETRAIN = './pretrain_models/mobilenet_v2-b0353104.pth'
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+         # https://download.pytorch.org/models/mobilenet_v2-b0353104.pth
+        self.MODEL_ENCODER_PRETRAIN = os.path.abspath(os.path.join(
+            BASE_DIR, '..', 'pretrain_models', 'mobilenet_v2-b0353104.pth'
+        ))
         self.MODEL_ENCODER_DIM = [24, 32, 96, 1280]  # 4x, 8x, 16x, 16x
         self.MODEL_ENCODER_EMBEDDING_DIM = 256
         self.MODEL_DECODER_INTERMEDIATE_LSTT = True
@@ -19,9 +25,9 @@ class DefaultModelConfig():
         self.MODEL_EPSILON = 1e-5
         self.MODEL_USE_PREV_PROB = False
 
-        self.TRAIN_LONG_TERM_MEM_GAP = 9999
+        self.TRAIN_LONG_TERM_MEM_GAP = None
         self.TRAIN_AUG_TYPE = 'v1'
 
-        self.TEST_LONG_TERM_MEM_GAP = 9999
+        self.TEST_LONG_TERM_MEM_GAP = None
 
         self.TEST_SHORT_TERM_MEM_SKIP = 1
