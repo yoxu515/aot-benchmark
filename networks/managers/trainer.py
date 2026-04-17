@@ -40,7 +40,7 @@ class Trainer(object):
 
         if self.rank == 0:
             if self.use_cuda:
-                print(f"Using CUDA:{self.gpu}")
+                print(f"Using CUDA:{self.device.index}")
             else:
                 print("Using CPU")
         if self.use_cuda:
@@ -69,6 +69,24 @@ class Trainer(object):
                 self.model.encoder
             ).to(self.device)
 
+        self.prepare_dataset()
+        self.process_pretrained_model()
+        if self.rank == 0:
+            try:
+                total_steps = float(cfg.TRAIN_TOTAL_STEPS)
+                ema_decay = 1. - 1. / (total_steps * cfg.TRAIN_EMA_RATIO)
+                self.ema_params = get_param_buffer_for_ema(
+                    self.model, update_buffer=(not cfg.MODEL_FREEZE_BN))
+                self.ema = ExponentialMovingAverage(self.ema_params,
+                                                    decay=ema_decay)
+                self.ema_dir = cfg.DIR_EMA_CKPT
+            except Exception as inst:
+                self.print_log(inst)
+                self.print_log('Error: failed to create EMA model!')
+                
+        if self.cfg.DIST_ENABLE:
+            import torch.distributed as dist
+            dist.barrier()
         if cfg.DIST_ENABLE:
             if self.use_cuda:
                 self.dist_engine = torch.nn.parallel.DistributedDataParallel(
@@ -96,18 +114,7 @@ class Trainer(object):
             self.use_frozen_bn = True
             self.print_log('Use Frozen BN in Encoder!')
 
-        if self.rank == 0:
-            try:
-                total_steps = float(cfg.TRAIN_TOTAL_STEPS)
-                ema_decay = 1. - 1. / (total_steps * cfg.TRAIN_EMA_RATIO)
-                self.ema_params = get_param_buffer_for_ema(
-                    self.model, update_buffer=(not cfg.MODEL_FREEZE_BN))
-                self.ema = ExponentialMovingAverage(self.ema_params,
-                                                    decay=ema_decay)
-                self.ema_dir = cfg.DIR_EMA_CKPT
-            except Exception as inst:
-                self.print_log(inst)
-                self.print_log('Error: failed to create EMA model!')
+
 
         self.print_log('Build optimizer.')
 
@@ -135,9 +142,6 @@ class Trainer(object):
             self.scaler = torch.cuda.amp.GradScaler()
         else:
             self.scaler = None
-
-        self.prepare_dataset()
-        self.process_pretrained_model()
 
         if cfg.TRAIN_TBLOG and self.rank == 0:
             from tensorboardX import SummaryWriter
@@ -206,6 +210,10 @@ class Trainer(object):
                     resume_ckpt,
                     self.device,
                     scaler=self.scaler)
+                for state in self.optimizer.state.values():
+                    for k, v in state.items():
+                        if isinstance(v, torch.Tensor):
+                            state[k] = v.to(self.device)
             except Exception as inst:
                 self.print_log(inst)
                 self.print_log('Try to use backup checkpoint.')
@@ -464,7 +472,6 @@ class Trainer(object):
                                        dim=0)
                 all_labels = torch.cat([ref_labels, prev_labels] + curr_labels,
                                        dim=0)
-                if self.use_cuda: torch.cuda.set_device(self.device.index)
                 self.engine.restart_engine(batch_size, True)
                 optimizer.zero_grad(set_to_none=True)
 

@@ -3,6 +3,12 @@ import shutil
 import numpy as np
 from pathlib import Path
 
+import torch.distributed as dist
+
+def is_main_process():
+    return (not dist.is_available() or
+            not dist.is_initialized() or
+            dist.get_rank() == 0)
 
 def get_device(device):
     if not isinstance(device, torch.device):
@@ -31,6 +37,10 @@ def load_network_and_optimizer(net, opt, pretrained_dir,  device=None, scaler=No
     net.load_state_dict(model_dict)
 
     opt.load_state_dict(pretrained['optimizer'])
+    for state in opt.state.values():
+        for k, v in state.items():
+            if isinstance(v, torch.Tensor):
+                state[k] = v.to(device)
 
     if scaler is not None and 'scaler' in pretrained:
         scaler.load_state_dict(pretrained['scaler'])
@@ -82,7 +92,10 @@ def load_network_and_optimizer_v2(net, opt, pretrained_dir,  device=None, scaler
 
     opt_dict.update(pretrained_opt_dict)
     opt.load_state_dict(opt_dict)
-
+    for state in opt.state.values():
+        for k, v in state.items():
+            if isinstance(v, torch.Tensor):
+                state[k] = v.to(device)
     if scaler is not None and 'scaler' in pretrained:
         scaler.load_state_dict(pretrained['scaler'])
 
@@ -122,12 +135,17 @@ def load_network(net, pretrained_dir, device=None):
 
 def save_network(net, opt, step, save_path, max_keep=8,
                  backup_dir='./saved_models', scaler=None):
-
+    if not is_main_process(): return
     save_path = Path(save_path)
     backup_dir = Path(backup_dir)
 
+    if hasattr(net, "module"):
+        state_dict = net.module.state_dict()
+    else:
+        state_dict = net.state_dict()
+
     ckpt = {
-        'state_dict': net.state_dict(),
+        'state_dict': state_dict,
         'optimizer': opt.state_dict()
     }
 
@@ -161,7 +179,7 @@ def save_network(net, opt, step, save_path, max_keep=8,
 
 def cp_ckpt(remote_dir="data_wd/youtube_vos_jobs/result",
             curr_dir="backup"):
-
+    if not is_main_process(): return
     remote_dir = Path(remote_dir)
     curr_dir = Path(curr_dir)
 
@@ -182,9 +200,6 @@ def cp_ckpt(remote_dir="data_wd/youtube_vos_jobs/result",
                     remote_ckpt_path = remote_dir / exp_dir.name / stage_dir.name / final / ckpt.name
 
                     remote_ckpt_path.parent.mkdir(parents=True, exist_ok=True)
-
-                    if remote_ckpt_path.exists():
-                        remote_ckpt_path.unlink()
 
                     try:
                         shutil.copy2(ckpt, remote_ckpt_path)

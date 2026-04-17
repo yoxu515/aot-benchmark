@@ -56,6 +56,8 @@ class ExponentialMovingAverage:
         one_minus_decay = 1.0 - decay
         with torch.no_grad():
             for s_param, param in zip(self.shadow_params, parameters):
+                if s_param.device != param.device:
+                    s_param.data = s_param.to(param.device)
                 s_param.sub_(one_minus_decay * (s_param - param))
 
     def copy_to(self, parameters):
@@ -75,7 +77,7 @@ class ExponentialMovingAverage:
           parameters: Iterable of `torch.nn.Parameter`; the parameters to be
             temporarily stored.
         """
-        self.collected_params = [param.clone() for param in parameters]
+        self.collected_params = [param.clone().detach() for param in parameters]
 
     def restore(self, parameters):
         """

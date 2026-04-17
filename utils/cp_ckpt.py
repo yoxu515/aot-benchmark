@@ -1,8 +1,16 @@
 import os
 import shutil
+import torch.distributed as dist
 
+def is_main_process():
+    return (not dist.is_available() or
+            not dist.is_initialized() or
+            dist.get_rank() == 0)
 
 def cp_ckpt(remote_dir="data_wd/youtube_vos_jobs/result", curr_dir="backup"):
+    if not is_main_process():
+        return
+
     if not os.path.isdir(curr_dir):
         print(f"Directory not found: {curr_dir}")
         return
@@ -29,7 +37,6 @@ def cp_ckpt(remote_dir="data_wd/youtube_vos_jobs/result", curr_dir="backup"):
                     continue
 
                 for ckpt in os.listdir(final_dir):
-
                     if not ckpt.endswith(".pth"):
                         continue
 
@@ -38,19 +45,10 @@ def cp_ckpt(remote_dir="data_wd/youtube_vos_jobs/result", curr_dir="backup"):
                         remote_dir, exp, stage, final, ckpt
                     )
 
-                    # ensure destination directory exists
                     os.makedirs(os.path.dirname(remote_ckpt_path), exist_ok=True)
 
-                    # remove existing checkpoint if present
-                    if os.path.exists(remote_ckpt_path):
-                        try:
-                            os.remove(remote_ckpt_path)
-                        except OSError as e:
-                            print(f"Failed to remove {remote_ckpt_path}: {e}")
-                            continue
-
                     try:
-                        shutil.copy(curr_ckpt_path, remote_ckpt_path)
+                        shutil.copy2(curr_ckpt_path, remote_ckpt_path)
                         print(ckpt, ": OK")
                     except OSError as e:
                         print(e)
@@ -59,3 +57,4 @@ def cp_ckpt(remote_dir="data_wd/youtube_vos_jobs/result", curr_dir="backup"):
 
 if __name__ == "__main__":
     cp_ckpt()
+    
