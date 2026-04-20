@@ -8,7 +8,6 @@ from collections.abc import Sequence
 
 import torch
 import torchvision.transforms.functional as TF
-from torchvision.transforms import InterpolationMode
 
 _pil_interpolation_to_str = {
     Image.NEAREST: 'PIL.Image.NEAREST',
@@ -18,13 +17,10 @@ _pil_interpolation_to_str = {
     Image.HAMMING: 'PIL.Image.HAMMING',
     Image.BOX: 'PIL.Image.BOX',
 }
-def _interp_to_str(interp):
-    if isinstance(interp, InterpolationMode):
-        return str(interp)
-    return _pil_interpolation_to_str.get(interp, str(interp))
+
 
 def _get_image_size(img):
-    if isinstance(img, Image.Image):
+    if TF._is_pil_image(img):
         return img.size
     elif isinstance(img, torch.Tensor) and img.dim() > 2:
         return img.shape[-2:][::-1]
@@ -128,8 +124,8 @@ class RandomAffine(object):
                  translate=None,
                  scale=None,
                  shear=None,
-                 interpolation=InterpolationMode.BILINEAR,
-                 fill=0):
+                 resample=False,
+                 fillcolor=0):
         if isinstance(degrees, numbers.Number):
             if degrees < 0:
                 raise ValueError(
@@ -175,8 +171,8 @@ class RandomAffine(object):
         else:
             self.shear = shear
 
-        self.interpolation = interpolation
-        self.fill = fill
+        self.resample = resample
+        self.fillcolor = fillcolor
 
     @staticmethod
     def get_params(degrees, translate, scale_ranges, shears, img_size):
@@ -189,10 +185,8 @@ class RandomAffine(object):
         if translate is not None:
             max_dx = translate[0] * img_size[0]
             max_dy = translate[1] * img_size[1]
-            translations = (
-                int(round(random.uniform(-max_dx, max_dx))),
-                int(round(random.uniform(-max_dy, max_dy)))
-            )
+            translations = (np.round(random.uniform(-max_dx, max_dx)),
+                            np.round(random.uniform(-max_dy, max_dy)))
         else:
             translations = (0, 0)
 
@@ -223,35 +217,29 @@ class RandomAffine(object):
         """
         ret = self.get_params(self.degrees, self.translate, self.scale,
                               self.shear, img.size)
-        img = TF.affine(
-            img,
-            *ret,
-            interpolation=self.interpolation,
-            fill=self.fill
-        )
-
-        mask = TF.affine(
-            mask,
-            *ret,
-            interpolation=InterpolationMode.NEAREST,
-            fill=0
-        )
+        img = TF.affine(img,
+                        *ret,
+                        resample=self.resample,
+                        fillcolor=self.fillcolor)
+        mask = TF.affine(mask, *ret, resample=Image.NEAREST, fillcolor=0)
         return img, mask
 
     def __repr__(self):
-        s = f"{self.__class__.__name__}(degrees={self.degrees}"
-
+        s = '{name}(degrees={degrees}'
         if self.translate is not None:
-            s += f", translate={self.translate}"
+            s += ', translate={translate}'
         if self.scale is not None:
-            s += f", scale={self.scale}"
+            s += ', scale={scale}'
         if self.shear is not None:
-            s += f", shear={self.shear}"
-
-        s += f", interpolation={self.interpolation}"
-        s += f", fill={self.fill})"
-
-        return s
+            s += ', shear={shear}'
+        if self.resample > 0:
+            s += ', resample={resample}'
+        if self.fillcolor != 0:
+            s += ', fillcolor={fillcolor}'
+        s += ')'
+        d = dict(self.__dict__)
+        d['resample'] = _pil_interpolation_to_str[d['resample']]
+        return s.format(name=self.__class__.__name__, **d)
 
 
 class RandomCrop(object):
@@ -317,12 +305,8 @@ class RandomCrop(object):
         """
         w, h = _get_image_size(img)
         th, tw = output_size
-
         if w == tw and h == th:
             return 0, 0, h, w
-
-        if h < th or w < tw:
-            raise ValueError(f"Crop size {output_size} larger than image {(h, w)}")
 
         i = random.randint(0, h - th)
         j = random.randint(0, w - tw)
@@ -369,13 +353,13 @@ class RandomResizedCrop(object):
         size: expected output size of each edge
         scale: range of size of the origin size cropped
         ratio: range of aspect ratio of the origin aspect ratio cropped
-        interpolation: Default: Interpolation.BILINEAR
+        interpolation: Default: PIL.Image.BILINEAR
     """
     def __init__(self,
                  size,
                  scale=(0.08, 1.0),
                  ratio=(3. / 4., 4. / 3.),
-                 interpolation=InterpolationMode.BILINEAR):
+                 interpolation=Image.BILINEAR):
         if isinstance(size, (tuple, list)):
             self.size = size
         else:
@@ -446,7 +430,7 @@ class RandomResizedCrop(object):
         return img, mask
 
     def __repr__(self):
-        interpolate_str = _interp_to_str(self.interpolation)
+        interpolate_str = _pil_interpolation_to_str[self.interpolation]
         format_string = self.__class__.__name__ + '(size={0}'.format(self.size)
         format_string += ', scale={0}'.format(
             tuple(round(s, 4) for s in self.scale))
@@ -517,7 +501,7 @@ class Resize(torch.nn.Module):
             Default is ``PIL.Image.BILINEAR``. If input is Tensor, only ``PIL.Image.NEAREST``, ``PIL.Image.BILINEAR``
             and ``PIL.Image.BICUBIC`` are supported.
     """
-    def __init__(self, size, interpolation=InterpolationMode.BILINEAR):
+    def __init__(self, size, interpolation=Image.BILINEAR):
         super().__init__()
         if not isinstance(size, (int, Sequence)):
             raise TypeError("Size should be int or sequence. Got {}".format(
@@ -541,7 +525,6 @@ class Resize(torch.nn.Module):
         return img, mask
 
     def __repr__(self):
-        interpolate_str = _interp_to_str(self.interpolation)
-
+        interpolate_str = _pil_interpolation_to_str[self.interpolation]
         return self.__class__.__name__ + '(size={0}, interpolation={1})'.format(
             self.size, interpolate_str)
