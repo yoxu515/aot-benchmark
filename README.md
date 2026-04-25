@@ -61,7 +61,6 @@ General examples (Messi and Kobe):
    * opencv-python
    * Pillow
    * tqdm
-   * myutils
    * Pytorch Correlation. Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension):
      ```bash
      git clone https://github.com/ClementPinard/Pytorch-Correlation-extension.git
@@ -115,28 +114,33 @@ Results:
       - **PASCAL VOC2012**: https://www.robots.ox.ac.uk/~vgg/projects/pascal/VOC/voc2012/
       - **COCO**: https://cocodataset.org/#download *(requires `pycocotools`)*
 
-      Download to a random file to delete it later
+      You can download datasets to any temporary directory. The pipeline can optionally delete the source after processing.
 
       > You do **not** need to download all datasets. Missing datasets are automatically skipped.
 
-      ---
+
 
       ### 2. Convert to Unified Format
-
-      Convert datasets into a **DAVIS-style format**:
-
       ```bash
-      python3 unify_dataset.py --name <DATASET_NAME> --src <PATH_TO_DATASET>
-      Dataset Mapping
-      MSRA10K → --name MSRA10K
-      ECSSD → --name ECSSD
-      PASCAL-S → --name PASCAl-s
-      PASCAL VOC2012 → --name PASCALVOC2012
-      COCO → --name COCO (requires pip install pycocotools)
+      python3 unify_dataset.py \
+        --name <DATASET_NAME> \
+        --src <PATH_TO_DATASET> \
+        --dst ./datasets/Static \
+        --delete_src
 
-    At last after converting
-      ```bash
-      rm -rf /path/to/source/dataset
+            ### 2. Convert to Unified Format
+
+            Convert datasets into a **DAVIS-style format**:
+
+        ```bash
+        python3 unify_dataset.py --name <DATASET_NAME> --src <PATH_TO_DATASET>
+
+        Dataset Mapping
+        MSRA10K → --name MSRA10K
+        ECSSD → --name ECSSD
+        PASCAL-S → --name PASCAl-s
+        PASCAL VOC2012 → --name PASCALVOC2012
+        COCO → --name COCO (requires pip install pycocotools)
 
     * **YouTube-VOS**
 
