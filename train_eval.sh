@@ -1,5 +1,5 @@
 exp="default"
-gpu_num="4"
+gpu_num="4"  
 #in case of no gpu, just don't include this argument
 
 model="aott"
@@ -9,23 +9,20 @@ model="aott"
 # model="r50_aotl"
 # model="swinb_aotl"
 
-## Pre-Training ##
-stage="pre"
-python tools/pretrain.py --amp \
-	--exp_name ${exp} \
-	--stage {stage} \
-	--model ${model} \
-	--gpu_num ${gpu_num} \
-
 ## Training ##
-pretrain_ckpt="pretrain_model/static_pretrain_final.pth"
+stage="pre"
+python tools/train.py --amp \
+	--exp_name ${exp} \
+	--stage ${stage} \
+	--model ${model} \
+	--gpu_num ${gpu_num}
+	
 stage="pre_ytb_dav"
 python tools/train.py --amp \
 	--exp_name ${exp} \
 	--stage ${stage} \
 	--model ${model} \
-	--gpu_num ${gpu_num} \
-	--pretrained_path ${pretrain_ckpt}
+	--gpu_num ${gpu_num}
 
 ## Evaluation ##
 dataset="davis2017"
