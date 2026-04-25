@@ -1,6 +1,5 @@
 import importlib
 import random
-import os
 import sys
 
 sys.setrecursionlimit(10000)
@@ -55,20 +54,8 @@ def main():
         cfg.TRAIN_GPUS = args.gpu_num
     if args.batch_size > 0:
         cfg.TRAIN_BATCH_SIZE = args.batch_size
-    DEFAULT_PRETRAIN = "pretrain_models/static_pretrain_final.pth"
-    if args.pretrained_path != '':
-        cfg.PRETRAIN_MODEL = args.pretrained_path
-    else:
-        cfg.PRETRAIN_MODEL = DEFAULT_PRETRAIN
-    cfg.PRETRAIN = True
-    cfg.PRETRAIN_FULL = True
-    if not os.path.exists(cfg.PRETRAIN_MODEL):
-        print(f"[WARNING] Pretrained model not found: {cfg.PRETRAIN_MODEL}")
-        cfg.PRETRAIN = False
 
     if args.pretrained_path != '':
-        cfg.PRETRAIN = True
-        cfg.PRETRAIN_FULL = True
         cfg.PRETRAIN_MODEL = args.pretrained_path
 
     if args.max_id_num > 0:
