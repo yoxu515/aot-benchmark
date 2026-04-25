@@ -15,7 +15,6 @@ from PIL import Image
 def ensure_dir(path):
     os.makedirs(path, exist_ok=True)
 
-
 def cp_files(src_list, dst_dir):
     ensure_dir(dst_dir)
     for src_path in tqdm(src_list, desc='Copying images'):
@@ -75,7 +74,7 @@ def convert_mask_voc(src_path, dst_path, palette=None):
 # =========================
 
 def process_masks(mask_paths, dst_dir, fn, palette, workers):
-    
+
     ensure_dir(dst_dir)
     tasks = [
         (src, os.path.join(dst_dir, os.path.basename(src)), fn, palette)
