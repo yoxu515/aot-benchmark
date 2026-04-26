@@ -1,11 +1,11 @@
 import os
 import importlib
-
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class DefaultEngineConfig():
     def __init__(self, exp_name='default', model='aott'):
-        model_cfg = importlib.import_module('configs.models.' +
-                                            model).ModelConfig()
+        module = importlib.import_module(f'configs.models.{model}')
+        model_cfg = module.ModelConfig()
         self.__dict__.update(model_cfg.__dict__)  # add model config
 
         self.EXP_NAME = exp_name + '_' + self.MODEL_NAME
@@ -28,12 +28,11 @@ class DefaultEngineConfig():
         self.DATA_RANDOM_GAP_DAVIS = 12  # max frame interval between two sampled frames for DAVIS (24fps)
         self.DATA_RANDOM_GAP_YTB = 3  # max frame interval between two sampled frames for YouTube-VOS (6fps)
         self.DATA_DYNAMIC_MERGE_PROB = 0.3
-
         self.PRETRAIN = True
         self.PRETRAIN_FULL = False  # if False, load encoder only
-        self.PRETRAIN_MODEL = './data_wd/pretrain_model/mobilenet_v2.pth'
-        # self.PRETRAIN_MODEL = './pretrain_models/mobilenet_v2-b0353104.pth'
-
+        self.PRETRAIN_MODEL = os.path.abspath(os.path.join(
+            BASE_DIR, '..', 'pretrain_models', 'mobilenet_v2-b0353104.pth'
+        ))
         self.TRAIN_TOTAL_STEPS = 100000
         self.TRAIN_START_STEP = 0
         self.TRAIN_WEIGHT_DECAY = 0.07
@@ -107,32 +106,30 @@ class DefaultEngineConfig():
         self.DIST_START_GPU = 0
 
     def init_dir(self):
-        self.DIR_DATA = '../VOS02/datasets'#'./datasets'
+        ROOT = os.path.abspath(os.path.join(BASE_DIR, '..'))
+
+        self.DIR_ROOT = ROOT
+        self.DIR_DATA = os.path.join(ROOT, 'datasets')
         self.DIR_DAVIS = os.path.join(self.DIR_DATA, 'DAVIS')
         self.DIR_YTB = os.path.join(self.DIR_DATA, 'YTB')
         self.DIR_STATIC = os.path.join(self.DIR_DATA, 'Static')
 
-        self.DIR_ROOT = './'#'./data_wd/youtube_vos_jobs'
-
-        self.DIR_RESULT = os.path.join(self.DIR_ROOT, 'result', self.EXP_NAME,
-                                       self.STAGE_NAME)
+        self.DIR_RESULT = os.path.join(self.DIR_ROOT, 'result', self.EXP_NAME, self.STAGE_NAME)
         self.DIR_CKPT = os.path.join(self.DIR_RESULT, 'ckpt')
         self.DIR_EMA_CKPT = os.path.join(self.DIR_RESULT, 'ema_ckpt')
         self.DIR_LOG = os.path.join(self.DIR_RESULT, 'log')
-        self.DIR_TB_LOG = os.path.join(self.DIR_RESULT, 'log', 'tensorboard')
-        # self.DIR_IMG_LOG = os.path.join(self.DIR_RESULT, 'log', 'img')
-        # self.DIR_EVALUATION = os.path.join(self.DIR_RESULT, 'eval')
-        self.DIR_IMG_LOG = './img_logs'
-        self.DIR_EVALUATION = './results'
+        self.DIR_TB_LOG = os.path.join(self.DIR_LOG, 'tensorboard')
+
+        self.DIR_IMG_LOG = os.path.join(self.DIR_ROOT, 'img_logs')
+        self.DIR_EVALUATION = os.path.join(self.DIR_ROOT, 'results')
 
         for path in [
-                self.DIR_RESULT, self.DIR_CKPT, self.DIR_EMA_CKPT,
-                self.DIR_LOG, self.DIR_EVALUATION, self.DIR_IMG_LOG,
-                self.DIR_TB_LOG
+            self.DIR_RESULT, self.DIR_CKPT, self.DIR_EMA_CKPT,
+            self.DIR_LOG, self.DIR_EVALUATION, self.DIR_IMG_LOG,
+            self.DIR_TB_LOG
         ]:
-            if not os.path.isdir(path):
-                try:
-                    os.makedirs(path)
-                except Exception as inst:
-                    print(inst)
-                    print('Failed to make dir: {}.'.format(path))
+            try:
+                os.makedirs(path, exist_ok=True)
+            except Exception as inst:
+                print(inst)
+                print(f'Failed to make dir: {path}.')
