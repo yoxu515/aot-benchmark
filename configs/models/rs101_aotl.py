@@ -9,7 +9,7 @@ class ModelConfig(DefaultModelConfig):
         # https://github.com/zhanghang1989/ResNeSt/releases/download/weights_step1/resnest101-22405ba7.pth
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         self.MODEL_ENCODER_PRETRAIN = os.path.abspath(os.path.join(
-            BASE_DIR, '..', 'pretrain_models', 'resnest101-22405ba7.pth'
+            BASE_DIR, '..', '..', 'pretrain_models', 'resnest101-22405ba7.pth'
         ))
         self.MODEL_ENCODER = 'resnest101'
         self.MODEL_ENCODER_DIM = [256, 512, 1024, 1024]  # 4x, 8x, 16x, 16x

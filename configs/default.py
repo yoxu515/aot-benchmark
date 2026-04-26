@@ -106,7 +106,7 @@ class DefaultEngineConfig():
         self.DIST_START_GPU = 0
 
     def init_dir(self):
-        ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', '..'))
+        ROOT = os.path.abspath(os.path.join(BASE_DIR, '..'))
 
         self.DIR_ROOT = ROOT
         self.DIR_DATA = os.path.join(ROOT, 'datasets')

@@ -11,7 +11,7 @@ class DefaultModelConfig():
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
          # https://download.pytorch.org/models/mobilenet_v2-b0353104.pth
         self.MODEL_ENCODER_PRETRAIN = os.path.abspath(os.path.join(
-            BASE_DIR, '..', 'pretrain_models', 'mobilenet_v2-b0353104.pth'
+            BASE_DIR, '..', '..', 'pretrain_models', 'mobilenet_v2-b0353104.pth'
         ))
         self.MODEL_ENCODER_DIM = [24, 32, 96, 1280]  # 4x, 8x, 16x, 16x
         self.MODEL_ENCODER_EMBEDDING_DIM = 256

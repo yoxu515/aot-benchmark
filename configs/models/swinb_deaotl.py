@@ -11,7 +11,7 @@ class ModelConfig(DefaultModelConfig):
         self.MODEL_ENCODER = 'swin_base'
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         self.MODEL_ENCODER_PRETRAIN = os.path.abspath(os.path.join(
-            BASE_DIR, '..', 'pretrain_models', 'swin_base_patch4_window7_224_22k.pth'
+            BASE_DIR, '..', '..', 'pretrain_models', 'swin_base_patch4_window7_224_22k.pth'
         ))
         self.MODEL_ALIGN_CORNERS = False
         self.MODEL_ENCODER_DIM = [128, 256, 512, 512]  # 4x, 8x, 16x, 16x
