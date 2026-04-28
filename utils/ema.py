@@ -4,20 +4,19 @@ from __future__ import unicode_literals
 import torch
 
 
-def get_param_buffer_for_ema(model, update_buffer=False,
+def get_param_buffer_for_ema(model,
+                             update_buffer=False,
                              required_buffers=['running_mean', 'running_var']):
-    result = {}
-
-    for name, param in model.named_parameters():
-        if param.requires_grad:
-            result[name] = param
-
+    params = model.parameters()
+    all_param_buffer = [p for p in params if p.requires_grad]
     if update_buffer:
-        for name, buf in model.named_buffers():
-            if any(b in name for b in required_buffers):
-                result[name] = buf
-
-    return result
+        named_buffers = model.named_buffers()
+        for key, value in named_buffers:
+            for buffer_name in required_buffers:
+                if buffer_name in key:
+                    all_param_buffer.append(value)
+                    break
+    return all_param_buffer
 
 
 class ExponentialMovingAverage:
@@ -35,17 +34,10 @@ class ExponentialMovingAverage:
         """
         if decay < 0.0 or decay > 1.0:
             raise ValueError('Decay must be between 0 and 1')
-
         self.decay = decay
         self.num_updates = 0 if use_num_updates else None
-
-        # name -> tensor
-        self.shadow_params = {
-            name: param.detach().clone()
-            for name, param in parameters.items()
-        }
-
-        self.collected_params = {}
+        self.shadow_params = [p.clone().detach() for p in parameters]
+        self.collected_params = []
 
     def update(self, parameters):
         """
@@ -53,7 +45,7 @@ class ExponentialMovingAverage:
         Call this every time the parameters are updated, such as the result of
         the `optimizer.step()` call.
         Args:
-            parameters: Iterable of `torch.nn.Parameter`; usually the same set of
+          parameters: Iterable of `torch.nn.Parameter`; usually the same set of
             parameters used to initialize this object.
         """
         decay = self.decay
@@ -61,22 +53,10 @@ class ExponentialMovingAverage:
             self.num_updates += 1
             decay = min(decay,
                         (1 + self.num_updates) / (10 + self.num_updates))
-
         one_minus_decay = 1.0 - decay
-
         with torch.no_grad():
-            for name, param in parameters.items():
-                if name not in self.shadow_params:
-                    continue
-
-                shadow_param = self.shadow_params[name]
-
-                # keep device consistent
-                if shadow_param.device != param.device:
-                    shadow_param = shadow_param.to(param.device)
-                    self.shadow_params[name] = shadow_param
-
-                shadow_param.sub_(one_minus_decay * (shadow_param - param))
+            for s_param, param in zip(self.shadow_params, parameters):
+                s_param.sub_(one_minus_decay * (s_param - param))
 
     def copy_to(self, parameters):
         """
@@ -85,9 +65,8 @@ class ExponentialMovingAverage:
           parameters: Iterable of `torch.nn.Parameter`; the parameters to be
             updated with the stored moving averages.
         """
-        for name, param in parameters.items():
-            if name in self.shadow_params:
-                param.data.copy_(self.shadow_params[name].data)
+        for s_param, param in zip(self.shadow_params, parameters):
+            param.data.copy_(s_param.data)
 
     def store(self, parameters):
         """
@@ -96,10 +75,7 @@ class ExponentialMovingAverage:
           parameters: Iterable of `torch.nn.Parameter`; the parameters to be
             temporarily stored.
         """
-        self.collected_params = {
-            name: param.detach().clone()
-            for name, param in parameters.items()
-        }
+        self.collected_params = [param.clone() for param in parameters]
 
     def restore(self, parameters):
         """
@@ -112,8 +88,6 @@ class ExponentialMovingAverage:
           parameters: Iterable of `torch.nn.Parameter`; the parameters to be
             updated with the stored parameters.
         """
-        for name, param in parameters.items():
-            if name in self.collected_params:
-                param.data.copy_(self.collected_params[name].data)
-
-        self.collected_params = {}
+        for c_param, param in zip(self.collected_params, parameters):
+            param.data.copy_(c_param.data)
+        del (self.collected_params)
