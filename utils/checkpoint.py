@@ -7,6 +7,8 @@ from pathlib import Path
 def get_device(gpu=None):
     if torch.cuda.is_available():
         return torch.device(f"cuda:{gpu}" if gpu is not None else "cuda")
+    if torch.backends.mps.is_available() and torch.backends.mps.is_built():
+        return torch.device("mps")
     return torch.device("cpu")
 
 def load_checkpoint(model, optimizer, path, device):
