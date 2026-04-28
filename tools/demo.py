@@ -79,7 +79,8 @@ color_palette = np.array(_palette).reshape(-1, 3)
 def get_device(gpu_id: int) -> torch.device:
     if torch.cuda.is_available():
         return torch.device(f'cuda:{gpu_id}')
-    print('WARNING: CUDA not available, falling back to CPU. Expect slow inference.')
+    if torch.backends.mps.is_available() and torch.backends.mps.is_built():
+        return torch.device("mps")
     return torch.device('cpu')
 
 
@@ -300,4 +301,3 @@ if __name__ == '__main__':
         print(inst)
         print(" For better efficiency, please install it.")
     main()
-    
