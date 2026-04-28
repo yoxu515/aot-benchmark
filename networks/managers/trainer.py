@@ -71,19 +71,18 @@ class Trainer(object):
 
         self.prepare_dataset()
         self.process_pretrained_model()
-        if self.rank == 0:
-            try:
-                total_steps = float(cfg.TRAIN_TOTAL_STEPS)
-                ema_decay = 1. - 1. / (total_steps * cfg.TRAIN_EMA_RATIO)
-                self.ema_params = get_param_buffer_for_ema(
-                    self.model, update_buffer=(not cfg.MODEL_FREEZE_BN))
-                self.ema = ExponentialMovingAverage(self.ema_params,
-                                                    decay=ema_decay)
-                self.ema_dir = cfg.DIR_EMA_CKPT
-            except Exception as inst:
-                self.print_log(inst)
-                self.print_log('Error: failed to create EMA model!')
-                
+        try:
+            total_steps = float(cfg.TRAIN_TOTAL_STEPS)
+            ema_decay = 1. - 1. / (total_steps * cfg.TRAIN_EMA_RATIO)
+            self.ema_params = get_param_buffer_for_ema(
+                self.model, update_buffer=(not cfg.MODEL_FREEZE_BN))
+            self.ema = ExponentialMovingAverage(self.ema_params,
+                                                decay=ema_decay)
+            self.ema_dir = cfg.DIR_EMA_CKPT
+        except Exception as inst:
+            self.print_log(inst)
+            self.print_log('Error: failed to create EMA model!')
+
         if self.cfg.DIST_ENABLE:
             import torch.distributed as dist
             dist.barrier()
@@ -166,40 +165,39 @@ class Trainer(object):
                 cfg.TRAIN_RESUME = False
 
         if cfg.TRAIN_RESUME:
-            if self.rank == 0:
+            try:
                 try:
-                    try:
-                        ema_ckpt_dir = os.path.join(
-                            self.ema_dir,
-                            'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
-                        ema_model, removed_dict = load_network(
-                            self.model, ema_ckpt_dir, self.device)
-                    except Exception as inst:
-                        self.print_log(inst)
-                        self.print_log('Try to use backup EMA checkpoint.')
-                        DIR_RESULT = './backup/{}/{}'.format(
-                            cfg.EXP_NAME, cfg.STAGE_NAME)
-                        DIR_EMA_CKPT = os.path.join(DIR_RESULT, 'ema_ckpt')
-                        ema_ckpt_dir = os.path.join(
-                            DIR_EMA_CKPT,
-                            'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
-                        ema_model, removed_dict = load_network(
-                            self.model, ema_ckpt_dir, self.device)
-
-                    if len(removed_dict) > 0:
-                        self.print_log(
-                            'Remove {} from EMA model.'.format(removed_dict))
-                    ema_decay = self.ema.decay
-                    del (self.ema)
-
-                    ema_params = get_param_buffer_for_ema(
-                        ema_model, update_buffer=(not cfg.MODEL_FREEZE_BN))
-                    self.ema = ExponentialMovingAverage(ema_params,
-                                                        decay=ema_decay)
-                    self.ema.num_updates = cfg.TRAIN_RESUME_CKPT
+                    ema_ckpt_dir = os.path.join(
+                        self.ema_dir,
+                        'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
+                    ema_model, removed_dict = load_network(
+                        self.model, ema_ckpt_dir, self.device)
                 except Exception as inst:
                     self.print_log(inst)
-                    self.print_log('Error: EMA model not found!')
+                    self.print_log('Try to use backup EMA checkpoint.')
+                    DIR_RESULT = './backup/{}/{}'.format(
+                        cfg.EXP_NAME, cfg.STAGE_NAME)
+                    DIR_EMA_CKPT = os.path.join(DIR_RESULT, 'ema_ckpt')
+                    ema_ckpt_dir = os.path.join(
+                        DIR_EMA_CKPT,
+                        'save_step_%s.pth' % (cfg.TRAIN_RESUME_CKPT))
+                    ema_model, removed_dict = load_network(
+                        self.model, ema_ckpt_dir, self.device)
+
+                if len(removed_dict) > 0:
+                    self.print_log(
+                        'Remove {} from EMA model.'.format(removed_dict))
+                ema_decay = self.ema.decay
+                del (self.ema)
+
+                ema_params = get_param_buffer_for_ema(
+                    ema_model, update_buffer=(not cfg.MODEL_FREEZE_BN))
+                self.ema = ExponentialMovingAverage(ema_params,
+                                                    decay=ema_decay)
+                self.ema.num_updates = cfg.TRAIN_RESUME_CKPT
+            except Exception as inst:
+                self.print_log(inst)
+                self.print_log('Error: EMA model not found!')
 
             try:
                 resume_ckpt = os.path.join(
@@ -535,9 +533,8 @@ class Trainer(object):
                         running_losses[idx].update(now_loss.item())
                         running_ious[idx].update(now_iou.item())
 
-                if self.rank == 0:
-                    if hasattr(self, "ema"):
-                        self.ema.update(self.ema_params)
+                if hasattr(self, "ema"):
+                    self.ema.update(self.ema_params)
 
                     avg_obj.update(sum(obj_nums) / float(len(obj_nums)))
                     curr_time = time.time()
