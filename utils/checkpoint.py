@@ -9,35 +9,28 @@ def get_device(gpu=None):
         return torch.device(f"cuda:{gpu}" if gpu is not None else "cuda")
     return torch.device("cpu")
 
+def load_checkpoint(model, optimizer, path, device):
+    ckpt = torch.load(path, map_location=device, weights_only=False)
 
-def load_network_and_optimizer(net, opt, pretrained_dir, gpu=None, scaler=None):
-    device = get_device(gpu)
-    pretrained = torch.load(pretrained_dir, map_location=device, weights_only=False)
+    state_dict = ckpt.get("state_dict", ckpt)
 
-    pretrained_dict = pretrained['state_dict']
-    model_dict = net.state_dict()
+    # remove "module." if present
+    state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
 
-    pretrained_dict_update = {}
-    pretrained_dict_remove = []
+    target_model = model.module if hasattr(model, "module") else model
 
-    for k, v in pretrained_dict.items():
-        if k in model_dict:
-            pretrained_dict_update[k] = v
-        elif k.startswith("module.") and k[7:] in model_dict:
-            pretrained_dict_update[k[7:]] = v
-        else:
-            pretrained_dict_remove.append(k)
+    missing, unexpected = target_model.load_state_dict(state_dict, strict=False)
 
-    model_dict.update(pretrained_dict_update)
-    net.load_state_dict(model_dict)
+    print(f"[CKPT] Missing: {len(missing)}, Unexpected: {len(unexpected)}")
 
-    opt.load_state_dict(pretrained['optimizer'])
+    if optimizer is not None and "optimizer" in ckpt:
+        try:
+            optimizer.load_state_dict(ckpt["optimizer"])
+            print("[CKPT] Optimizer loaded")
+        except Exception as e:
+            print(f"[CKPT] Optimizer skipped: {e}")
 
-    if scaler is not None and 'scaler' in pretrained:
-        scaler.load_state_dict(pretrained['scaler'])
-
-    del pretrained
-    return net.to(device), opt, pretrained_dict_remove
+    return model
 
 
 def load_network_and_optimizer_v2(net, opt, pretrained_dir, gpu=None, scaler=None):
