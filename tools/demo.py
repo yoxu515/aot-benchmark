@@ -79,7 +79,9 @@ color_palette = np.array(_palette).reshape(-1, 3)
 def get_device(gpu_id: int) -> torch.device:
     if torch.cuda.is_available():
         return torch.device(f'cuda:{gpu_id}')
-    print('WARNING: CUDA not available, falling back to CPU. Expect slow inference.')
+    if hasattr(torch.backends, "mps"):
+        if torch.backends.mps.is_built() and torch.backends.mps.is_available():
+            return torch.device("mps")
     return torch.device('cpu')
 
 
@@ -113,6 +115,7 @@ def demo(cfg):
     video_fps = 15
     gpu_id = cfg.TEST_GPU_ID
     device = get_device(gpu_id)
+    print("Device:", device)
 
     # Load pre-trained model
     print('Build AOT model.')
@@ -300,4 +303,3 @@ if __name__ == '__main__':
         print(inst)
         print(" For better efficiency, please install it.")
     main()
-    
