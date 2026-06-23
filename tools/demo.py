@@ -14,6 +14,9 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import transforms
+import tempfile
+import shutil
+from pathlib import Path
 
 from networks.models import build_vos_model
 from networks.engines import build_engine
@@ -79,7 +82,9 @@ color_palette = np.array(_palette).reshape(-1, 3)
 def get_device(gpu_id: int) -> torch.device:
     if torch.cuda.is_available():
         return torch.device(f'cuda:{gpu_id}')
-    print('WARNING: CUDA not available, falling back to CPU. Expect slow inference.')
+    if hasattr(torch.backends, "mps"):
+        if torch.backends.mps.is_available() and torch.backends.mps.is_built():
+            return torch.device("mps")
     return torch.device('cpu')
 
 
@@ -89,6 +94,59 @@ def to_device(tensor: torch.Tensor, device: torch.device, non_blocking: bool = F
     return tensor.to(device, non_blocking=nb)
 # ───────────────────────────────────────────────────────────────────────────────
 
+def build_video_dataset(video_path, mask_path, seq_name):
+    tmp = tempfile.TemporaryDirectory()
+    root = Path(tmp.name)
+
+    images_dir = root / 'images' / seq_name
+    masks_dir  = root / 'masks'  / seq_name
+    images_dir.mkdir(parents=True, exist_ok=True)
+    masks_dir.mkdir(parents=True, exist_ok=True)
+
+    return tmp, root, images_dir, masks_dir
+
+def extract_frames_cv2(video_path, images_dir):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise RuntimeError(f'Failed to open video: {video_path}')
+
+    fps = cap.get(cv2.CAP_PROP_FPS) or 15.0
+    idx = 0
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
+        out_path = images_dir / f'{idx:05d}.jpg'
+        cv2.imwrite(str(out_path), frame)
+        idx += 1
+
+    cap.release()
+    if idx == 0:
+        raise RuntimeError('No frames extracted')
+    return fps, idx
+
+def place_and_validate_mask(mask_path, images_dir, masks_dir):
+    first_frame = sorted(images_dir.iterdir())[0]
+    first_img = Image.open(first_frame).convert('RGB')
+    mask_img  = Image.open(mask_path)
+
+    # resize if needed
+    if mask_img.size != first_img.size:
+        mask_img = mask_img.resize(first_img.size, Image.NEAREST)
+
+    mask_np = np.array(mask_img)
+    if mask_np.ndim != 2:
+        raise ValueError(
+            f"Expected indexed PNG mask, got shape {mask_np.shape}"
+        )
+
+    mask_np = mask_np.astype(np.uint8)
+
+    # convert to palette mode (important!)
+    mask_img = Image.fromarray(mask_np).convert('P')
+
+    out_mask = masks_dir / '00000.png'
+    mask_img.save(out_mask)
 
 def overlay(image, mask, colors=[255, 0, 0], cscale=1, alpha=0.4):
     colors = np.atleast_2d(colors) * cscale
@@ -110,9 +168,10 @@ def overlay(image, mask, colors=[255, 0, 0], cscale=1, alpha=0.4):
 
 
 def demo(cfg):
-    video_fps = 15
+    video_fps = getattr(cfg, 'TEST_VIDEO_FPS', 15)
     gpu_id = cfg.TEST_GPU_ID
     device = get_device(gpu_id)
+    print("Device:", device)
 
     # Load pre-trained model
     print('Build AOT model.')
@@ -254,9 +313,9 @@ def demo(cfg):
         print('Save a visualization video to {}.'.format(output_video_path))
         videoWriter.release()
 
-
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="AOT Demo")
     parser.add_argument('--exp_name', type=str, default='default')
     parser.add_argument('--stage', type=str, default='pre_ytb_dav')
@@ -267,31 +326,75 @@ def main():
     parser.add_argument('--ckpt_path', type=str,
                         default='./pretrain_models/R50_AOTL_PRE_YTB_DAV.pth')
     parser.add_argument('--max_resolution', type=float, default=480 * 1.3)
+
+    # NEW
+    parser.add_argument('--video', type=str, default=None)
+    parser.add_argument('--mask', type=str, default=None)
+    parser.add_argument('--fps', type=float, default=None)
+    parser.add_argument('--seq_name', type=str, default='seq1')
+
     parser.add_argument('--amp', action='store_true')
     parser.set_defaults(amp=False)
 
     args = parser.parse_args()
 
+    # ── config ─────────────────────────────────────
     engine_config = importlib.import_module('configs.' + args.stage)
     cfg = engine_config.EngineConfig(args.exp_name, args.model)
 
     cfg.TEST_GPU_ID = args.gpu_id
     cfg.TEST_CKPT_PATH = args.ckpt_path
-    cfg.TEST_DATA_PATH = args.data_path
     cfg.TEST_OUTPUT_PATH = args.output_path
     cfg.TEST_MIN_SIZE = None
     cfg.TEST_MAX_SIZE = args.max_resolution * 800. / 480.
 
-    # AMP is CUDA-only; skip gracefully on CPU
+    # ── AMP ───────────────────────────────────────
     use_amp = args.amp and torch.cuda.is_available()
-    if args.amp and not torch.cuda.is_available():
-        print('WARNING: --amp requested but CUDA not available; running without AMP.')
 
-    if use_amp:
-        with torch.amp.autocast(device_type='cuda', enabled=True):
-            demo(cfg)
+    # ── MODE SELECTION ────────────────────────────
+    video_mode = args.video is not None
+
+    if video_mode:
+        if args.mask is None:
+            raise ValueError("--mask required with --video")
+
+        # build temp dataset
+        tmp, root, images_dir, masks_dir = build_video_dataset(
+            args.video, args.mask, args.seq_name
+        )
+
+        try:
+            # extract frames
+            fps, _ = extract_frames_cv2(args.video, images_dir)
+
+            # place mask
+            place_and_validate_mask(args.mask, images_dir, masks_dir)
+
+            # override dataset path
+            cfg.TEST_DATA_PATH = str(root)
+
+            # FPS logic
+            cfg.TEST_VIDEO_FPS = int(round(args.fps if args.fps else fps))
+
+            # run
+            if use_amp:
+                with torch.amp.autocast(device_type='cuda', enabled=True):
+                    demo(cfg)
+            else:
+                demo(cfg)
+
+        finally:
+            tmp.cleanup()
+
     else:
-        demo(cfg)
+        # normal dataset mode
+        cfg.TEST_DATA_PATH = args.data_path
+
+        if use_amp:
+            with torch.amp.autocast(device_type='cuda', enabled=True):
+                demo(cfg)
+        else:
+            demo(cfg)
 
 if __name__ == '__main__':
     try:
@@ -300,4 +403,3 @@ if __name__ == '__main__':
         print(inst)
         print(" For better efficiency, please install it.")
     main()
-    
