@@ -57,7 +57,7 @@ General examples (Messi and Kobe):
 
 ## Requirements
    * Python >= 3.10
-   * pytorch >= 1.7.0
+   * pytorch >= 2.9.0
    * torchvision >= 0.24.0
    * opencv-python-headless>=4.10.0
    * Pillow >= 11.0.0
@@ -89,6 +89,11 @@ Optional demo dependencies:
 ```bash
 pip install .[demo]
 ```
+## Running docker file
+
+docker build -f Dockerfile -t myimage .
+docker run myimage
+
 ## Model Zoo and Results
 Pre-trained models, benckmark scores, and pre-computed results reproduced by this project can be found in [MODEL_ZOO.md](MODEL_ZOO.md).
 
