@@ -73,7 +73,6 @@ Five official first-place challenge wins across three major venues, plus an addi
 | 2022 | VOT 2022 | BBox tracks (STb + RTb) — surpassed dedicated bbox winners† | ECCV 2022 | MS-AOT + [AlphaRefine](https://github.com/MasterBin-IIAU/AlphaRefine) | [Report](https://data.votchallenge.net/vot2022/vot2022_st_rt.pdf) |
 
 > †BBox results were submitted after the competition deadline at the organizers' request and were highlighted in the official ECCV 2022 workshop presentation. They are included for historical context and are not counted as an official first-place challenge win.
-> †Bbox results were submitted after the competition deadline at the organizers' request and were highlighted in the official ECCV 2022 workshop presentation.
 
 
 ## Intro
@@ -84,7 +83,7 @@ A modular reference PyTorch implementation of AOT series frameworks:
 - **AOT**: Associating Objects with Transformers for Video Object Segmentation (NeurIPS 2021, Score 8/8/7/8) [[OpenReview](https://openreview.net/forum?id=hl3v8io3ZYt)][[PDF](https://arxiv.org/abs/2106.02638)]
 <img src="source/overview.png" width="90%"/>
 
-An extension of AOT, [AOST](https://arxiv.org/abs/2203.11442) (under review), is available now. AOST is a more robust and flexible framework, supporting run-time speed-accuracy trade-offs.
+An extension of AOT, [AOST](https://arxiv.org/abs/2203.11442) accepted at IEEE TPAMI 2024, is available now. AOST is a more robust and flexible framework, supporting run-time speed-accuracy trade-offs.
 
 ## Examples
 Benchmark examples:
