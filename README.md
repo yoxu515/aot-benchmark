@@ -1,6 +1,13 @@
 # AOT Series Frameworks in PyTorch
 
 <p>
+  <img src="https://img.shields.io/badge/NeurIPS-2021-7B68EE"/>
+  <img src="https://img.shields.io/badge/NeurIPS-2022%20Spotlight%20%E2%AD%90-FFB347"/>
+  <img src="https://img.shields.io/badge/IJCAI-2023-3CB371"/>
+  <img src="https://img.shields.io/badge/IEEE%20TPAMI-2024-E07B54"/>
+  <img src="https://img.shields.io/badge/%F0%9F%8F%86%20Challenge%20Wins-5-gold"/>
+</p>
+<p>
   <a href="https://paperswithcode.com/sota/semi-supervised-video-object-segmentation-on-15?p=decoupling-features-in-hierarchical">
     <img src="https://img.shields.io/badge/SOTA-Semi--Supervised%20VOS%20(DAVIS)-brightgreen"/>
   </a>
@@ -29,6 +36,46 @@
 - `2023/04`: **SAM-Track** - We are pleased to announce the release of our latest project, [Segment and Track Anything (SAM-Track)](https://github.com/z-x-yang/Segment-and-Track-Anything). This innovative project merges two kinds of models, [SAM](https://github.com/facebookresearch/segment-anything) and our [DeAOT](https://github.com/yoxu515/aot-benchmark), to achieve seamless segmentation and efficient tracking of any objects in videos.
 - `2022/10`: **WINNER** - AOT-based Tracker ranked **1st** in **four tracks** of the **VOT 2022** challenge ([presentation of results](https://data.votchallenge.net/vot2022/vot2022_st_rt.pdf)). In detail, our MS-AOT is the winner of two segmentation tracks, VOT-STs2022 and VOT-RTs2022 (real-time). In addition, the bounding box results of MS-AOT (initialized by [AlphaRef](https://github.com/MasterBin-IIAU/AlphaRefine), and output is bounding box fitted to mask prediction) surpass the winners of two bounding box tracks, VOT-STb2022 and VOT-RTb2022 (real-time). The bounding box results were required by the organizers after the competition deadline but were highlighted in the [workshop presentation](https://data.votchallenge.net/vot2022/vot2022_st_rt.pdf) (ECCV 2022).
 
+
+## Impact
+
+AOT/DeAOT has been adopted as core tracking infrastructure in published robotics research from **MIT CSAIL** and **Harvard SEAS**:
+
+| Project | Institutions | Venue | Details |
+|---------|-------------|-------|---------|
+| [Follow Anything (FAn)](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=10436161) | MIT CSAIL · Harvard SEAS · Project CETI | IEEE RA-L | Open-vocabulary real-time drone tracking system. |
+
+---
+
+
+## Papers
+
+A four-year research lineage across NeurIPS, IJCAI, and IEEE TPAMI:
+
+| Year | Paper | Venue | Branch |
+|------|-------|-------|--------|
+| 2021 | [**AOT**: Associating Objects with Transformers for Video Object Segmentation](https://proceedings.neurips.cc/paper_files/paper/2021/file/147702db07145348245dc5a2f2fe5683-Paper.pdf)  | NeurIPS 2021 | `main` |
+| 2022 | [**DeAOT**: Decoupling Features in Hierarchical Propagation for VOS](https://proceedings.neurips.cc/paper_files/paper/2022/file/eb890c36af87e4ca82e8ef7bcba6a284-Paper-Conference.pdf)  | NeurIPS 2022 **Spotlight** ⭐ | `main` |
+| 2023 | [**PAOT**: Video Object Segmentation in Panoptic Wild Scenes](https://www.ijcai.org/proceedings/2023/0178.pdf) | IJCAI 2023 | [`paot`](https://github.com/yoxu515/aot-benchmark/tree/paot) |
+| 2024 | [**AOST**: Scalable Video Object Segmentation with Identification Mechanism](https://ieeexplore.ieee.org/document/10487964) ([arXiv](https://arxiv.org/abs/2203.11442)) | IEEE TPAMI 2024 | [`paot`](https://github.com/yoxu515/aot-benchmark/tree/paot) |
+
+## Competition Record
+
+Five official first-place challenge wins across three major venues, plus an additional VOT 2022 bbox-track result that surpassed the dedicated bbox winners after the competition deadline at the organizers' request.
+
+| Year | Challenge | Track | Venue | Model | Report |
+|------|-----------|-------|-------|-------|--------|
+| 2023 | VOTS 2023 | Overall | ICCV 2023 | DMAOT | [Leaderboard](https://eu.aihub.ml/competitions/201#results) · [Submission](https://eu.aihub.ml/my/competition/submission/1139/detailed_results/) |
+| 2023 | EPIC-Kitchens | Semi-Supervised VOS (segmentation-based tracking) | CVPR 2023 | MS-DeAOT | [Report](https://arxiv.org/pdf/2307.02010) |
+| 2023 | EPIC-Kitchens | TREK-150 Object Tracking (BBox-based) | CVPR 2023 | MS-DeAOT | [Report](https://arxiv.org/pdf/2307.02508) |
+| 2022 | VOT 2022 | Short-term segmentation (VOT-STs2022) | ECCV 2022 | MS-AOT | [Report](https://data.votchallenge.net/vot2022/vot2022_st_rt.pdf) |
+| 2022 | VOT 2022 | Real-time segmentation (VOT-RTs2022) | ECCV 2022 | MS-AOT | [Report](https://data.votchallenge.net/vot2022/vot2022_st_rt.pdf) |
+| 2022 | VOT 2022 | BBox tracks (STb + RTb) — surpassed dedicated bbox winners† | ECCV 2022 | MS-AOT + [AlphaRefine](https://github.com/MasterBin-IIAU/AlphaRefine) | [Report](https://data.votchallenge.net/vot2022/vot2022_st_rt.pdf) |
+
+> †BBox results were submitted after the competition deadline at the organizers' request and were highlighted in the official ECCV 2022 workshop presentation. They are included for historical context and are not counted as an official first-place challenge win.
+> †Bbox results were submitted after the competition deadline at the organizers' request and were highlighted in the official ECCV 2022 workshop presentation.
+
+
 ## Intro
 A modular reference PyTorch implementation of AOT series frameworks:
 - **DeAOT**: Decoupling Features in Hierarchical Propagation for Video Object Segmentation (NeurIPS 2022, Spotlight) [[OpenReview](https://openreview.net/forum?id=DgM7-7eMkq0)][[PDF](https://arxiv.org/pdf/2210.09782.pdf)]
@@ -49,10 +96,10 @@ General examples (Messi and Kobe):
 <img src="source/messi.gif" width="45%"/> <img src="source/kobe.gif" width="45%"/>
 
 ## Highlights
-- **High performance:** up to **85.5%** ([R50-AOTL](MODEL_ZOO.md#youtube-vos-2018-val)) on YouTube-VOS 2018 and **82.1%** ([SwinB-AOTL]((MODEL_ZOO.md#youtube-vos-2018-val))) on DAVIS-2017 Test-dev under standard settings (without any test-time augmentation and post processing). 
+- **High performance:** up to **85.5%** ([R50-AOTL](MODEL_ZOO.md#youtube-vos-2018-val)) on YouTube-VOS 2018 and **82.1%** ([SwinB-AOTL]((MODEL_ZOO.md#youtube-vos-2018-val))) on DAVIS-2017 Test-dev under standard settings (without any test-time augmentation and post processing).
 - **High efficiency:** up to **51fps** ([AOTT](MODEL_ZOO.md#davis-2017-test)) on DAVIS-2017 (480p) even with **10** objects and **41fps** on YouTube-VOS (1.3x480p). AOT can process multiple objects (less than a pre-defined number, 10 is the default) as efficiently as processing a single object. This project also supports inferring any number of objects together within a video by automatic separation and aggregation.
 - **Multi-GPU training and inference**
-- **Mixed precision training and inference** 
+- **Mixed precision training and inference**
 - **Test-time augmentation:** multi-scale and flipping augmentations are supported.
 
 ## Requirements
@@ -99,8 +146,8 @@ Results:
 1. Prepare datasets:
 
     Please follow the below instruction to prepare datasets in each corresponding folder.
-    * **Static** 
-    
+    * **Static**
+
         [datasets/Static](datasets/Static): pre-training dataset with static images. Guidance can be found in [AFB-URR](https://github.com/xmlyqing00/AFB-URR), which we referred to in the implementation of the pre-training.
     * **YouTube-VOS**
 
