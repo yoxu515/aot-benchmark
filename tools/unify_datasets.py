@@ -5,9 +5,7 @@ import cv2
 import multiprocessing
 from shutil import copyfile
 from glob import glob
-from tqdm import tqdm
 from PIL import Image
-import myutils
 
 try:
     from pycocotools.coco import COCO
@@ -54,7 +52,7 @@ def get_args():
 
 def cp_files(src_list, dst_dir):
     os.makedirs(dst_dir, exist_ok=True)
-    for src_path in tqdm(src_list, desc='cp'):
+    for src_path in src_list:
         dst_path = os.path.join(dst_dir, os.path.basename(src_path))
         copyfile(src_path, dst_path)
 
@@ -121,7 +119,8 @@ def cvt_mask_index(data):
 def cvt_mask_palette_VOC(data):
     """VOC2012-specific: strip void label (>20) then apply palette."""
     src_path, dst_path = data
-    mask = np.array(myutils.load_image_in_PIL(src_path, 'P'))
+    with Image.open(src_path) as img:
+        mask = np.array(img.convert('P'))
     mask[mask > 20] = 0
     mask = Image.fromarray(mask)
     mask.putpalette(MASK_PALETTE)

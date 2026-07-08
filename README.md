@@ -179,7 +179,7 @@ If your dataset uses different folder names, specify them with `--img_dir` and `
 ### Usage
 
 ```bash
-python3 unify_pretrain_dataset.py \
+python3 tools/unify_pretrain_dataset.py \
     --name MyDataset \
     --src /path/to/raw \
     --dst /path/to/unified \
