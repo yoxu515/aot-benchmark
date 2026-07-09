@@ -295,21 +295,57 @@ def cvt_custom():
         raise FileNotFoundError(f'Image directory not found: {img_dir}')
     if not os.path.isdir(mask_dir):
         raise FileNotFoundError(f'Mask directory not found: {mask_dir}')
-
     img_list = sorted(glob(os.path.join(img_dir, f'*{args.img_ext}')),
-                      key=lambda x: (len(x), x))
+                  key=lambda x: (len(x), x))
     mask_list = sorted(glob(os.path.join(mask_dir, f'*{args.mask_ext}')),
-                       key=lambda x: (len(x), x))
+                    key=lambda x: (len(x), x))
 
-    if len(img_list) == 0:
-        raise RuntimeError(f'No images found in {img_dir} with extension {args.img_ext}')
-    if len(mask_list) == 0:
-        raise RuntimeError(f'No masks found in {mask_dir} with extension {args.mask_ext}')
-    if len(img_list) != len(mask_list):
+    if not img_list:
         raise RuntimeError(
-            f'Image/mask count mismatch: {len(img_list)} imgs vs {len(mask_list)} masks.\n'
-            f'Ensure every image has a corresponding mask with the same stem.'
+            f'No images found in {img_dir} with extension {args.img_ext}'
         )
+
+    if not mask_list:
+        raise RuntimeError(
+            f'No masks found in {mask_dir} with extension {args.mask_ext}'
+        )
+
+    # Match files by filename stem instead of relying on sorted order.
+    img_map = {
+        os.path.splitext(os.path.basename(path))[0]: path
+        for path in img_list
+    }
+    mask_map = {
+        os.path.splitext(os.path.basename(path))[0]: path
+        for path in mask_list
+    }
+
+    missing_masks = sorted(img_map.keys() - mask_map.keys())
+    missing_images = sorted(mask_map.keys() - img_map.keys())
+
+    if missing_masks or missing_images:
+        msg = []
+        if missing_masks:
+            msg.append(
+                "Missing masks for image stems: "
+                + ", ".join(missing_masks[:10])
+            )
+            if len(missing_masks) > 10:
+                msg.append(f"...and {len(missing_masks) - 10} more.")
+
+        if missing_images:
+            msg.append(
+                "Missing images for mask stems: "
+                + ", ".join(missing_images[:10])
+            )
+            if len(missing_images) > 10:
+                msg.append(f"...and {len(missing_images) - 10} more.")
+
+        raise RuntimeError("\n".join(msg))
+
+    stems = sorted(img_map.keys())
+    img_list = [img_map[stem] for stem in stems]
+    mask_list = [mask_map[stem] for stem in stems]
 
     print(f'Custom dataset [{args.name}]: {len(img_list)} samples, '
           f'mask_format={args.mask_format}')

@@ -60,6 +60,7 @@ General examples (Messi and Kobe):
    * pytorch >= 1.7.0 and torchvision
    * opencv-python
    * Pillow
+   * pycocotools (if you want to pre-train the model on COCO dataset)
    * Pytorch Correlation. Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension):
      ```bash
      git clone https://github.com/ClementPinard/Pytorch-Correlation-extension.git
@@ -70,7 +71,6 @@ General examples (Messi and Kobe):
 
 Optional:
    * scikit-image (if you want to run our **Demo**, please install)
-   * pycocotools (if you want to pre-train the model on COCO dataset)
 
 ## Model Zoo and Results
 Pre-trained models, benckmark scores, and pre-computed results reproduced by this project can be found in [MODEL_ZOO.md](MODEL_ZOO.md).
