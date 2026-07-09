@@ -7,6 +7,7 @@ sys.path.append('..')
 
 import cv2
 from PIL import Image
+from skimage.morphology import dilation
 
 import numpy as np
 import torch
@@ -101,8 +102,8 @@ def overlay(image, mask, colors=[255, 0, 0], cscale=1, alpha=0.4):
         binary_mask = mask == object_id
 
         im_overlay[binary_mask] = foreground[binary_mask]
-        kernel = np.ones((3, 3), np.uint8)
-        countours = cv2.dilate(binary_mask.astype(np.uint8), kernel).astype(bool) ^ binary_mask
+
+        countours = dilation(binary_mask) ^ binary_mask
         im_overlay[countours, :] = 0
 
     return im_overlay.astype(image.dtype)
@@ -299,3 +300,4 @@ if __name__ == '__main__':
         print(inst)
         print(" For better efficiency, please install it.")
     main()
+    

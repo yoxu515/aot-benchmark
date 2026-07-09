@@ -69,6 +69,8 @@ General examples (Messi and Kobe):
      cd ..
      ```
 
+Optional:
+   * scikit-image (if you want to run our **Demo**, please install)
 
 ## Model Zoo and Results
 Pre-trained models, benckmark scores, and pre-computed results reproduced by this project can be found in [MODEL_ZOO.md](MODEL_ZOO.md).
