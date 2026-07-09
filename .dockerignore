@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# Dataset
+data/
+datasets/
+
+# Model checkpoints
+checkpoints/
+weights/
+*.pth
+*.pt
+*.ckpt
+
+# Logs
+logs/
+wandb/
+runs/
+
+# Cache
+.cache/
+.pytest_cache/
+
+# Docker
+Dockerfile.old

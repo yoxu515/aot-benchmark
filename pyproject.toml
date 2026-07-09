@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aot-benchmark"
+version = "0.0.0"
+description = "Associating Objects with Transformers for Video Object Segmentation"
+requires-python = ">=3.10"
+
+dependencies = [
+    "torch>=2.9.0",
+    "torchvision>=0.24.0",
+    "opencv-python-headless>=4.10.0",
+    "Pillow>=11.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
