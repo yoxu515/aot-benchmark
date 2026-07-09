@@ -103,12 +103,18 @@ class StaticTrain(Dataset):
 
         self.img_list = list()
         self.mask_list = list()
+        dataset_list = []
 
-        dataset_list = list()
-        lines = ['COCO', 'ECSSD', 'MSRA10K', 'PASCAL-S', 'PASCALVOC2012']
-        for line in lines:
-            dataset_name = line.strip()
+        img_root = os.path.join(root, "JPEGImages")
+        mask_root = os.path.join(root, "Annotations")
 
+        lines = sorted([
+            d for d in os.listdir(img_root)
+            if os.path.isdir(os.path.join(img_root, d))
+            and os.path.isdir(os.path.join(mask_root, d))
+        ])
+
+        for dataset_name in lines:
             img_dir = os.path.join(root, 'JPEGImages', dataset_name)
             mask_dir = os.path.join(root, 'Annotations', dataset_name)
 
