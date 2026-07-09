@@ -1,4 +1,3 @@
-from __future__ import division
 import os
 import shutil
 import json
@@ -149,7 +148,7 @@ class YOUTUBEVOS_Test(object):
         images = []
         labels = []
         for obj_n in obj_names:
-            images += map(lambda x: x + '.jpg', list(data[obj_n]["frames"]))
+            images.extend(f"{x}.jpg" for x in data[obj_n]["frames"])
             labels.append(data[obj_n]["frames"][0] + '.png')
         images = np.sort(np.unique(images))
         labels = np.sort(np.unique(labels))
@@ -219,8 +218,7 @@ class YOUTUBEVOS_DenseTest(object):
         obj_names = list(data.keys())
         images_sparse = []
         for obj_n in obj_names:
-            images_sparse += map(lambda x: x + '.jpg',
-                                 list(data[obj_n]["frames"]))
+            images_sparse.extend(f"{x}.jpg" for x in data[obj_n]["frames"])
         images_sparse = np.sort(np.unique(images_sparse))
 
         images = np.sort(

@@ -49,17 +49,18 @@ General examples (Messi and Kobe):
 <img src="source/messi.gif" width="45%"/> <img src="source/kobe.gif" width="45%"/>
 
 ## Highlights
-- **High performance:** up to **85.5%** ([R50-AOTL](MODEL_ZOO.md#youtube-vos-2018-val)) on YouTube-VOS 2018 and **82.1%** ([SwinB-AOTL]((MODEL_ZOO.md#youtube-vos-2018-val))) on DAVIS-2017 Test-dev under standard settings (without any test-time augmentation and post processing). 
+- **High performance:** up to **85.5%** ([R50-AOTL](MODEL_ZOO.md#youtube-vos-2018-val)) on YouTube-VOS 2018 and **82.1%** ([SwinB-AOTL]((MODEL_ZOO.md#youtube-vos-2018-val))) on DAVIS-2017 Test-dev under standard settings (without any test-time augmentation and post processing).
 - **High efficiency:** up to **51fps** ([AOTT](MODEL_ZOO.md#davis-2017-test)) on DAVIS-2017 (480p) even with **10** objects and **41fps** on YouTube-VOS (1.3x480p). AOT can process multiple objects (less than a pre-defined number, 10 is the default) as efficiently as processing a single object. This project also supports inferring any number of objects together within a video by automatic separation and aggregation.
 - **Multi-GPU training and inference**
-- **Mixed precision training and inference** 
+- **Mixed precision training and inference**
 - **Test-time augmentation:** multi-scale and flipping augmentations are supported.
 
 ## Requirements
-   * Python3
-   * pytorch >= 1.7.0 and torchvision
-   * opencv-python
-   * Pillow
+   * Python >= 3.10
+   * pytorch >= 2.9.0
+   * torchvision >= 0.24.0
+   * opencv-python-headless>=4.10.0
+   * Pillow >= 11.0.0
    * Pytorch Correlation. Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension):
      ```bash
      git clone https://github.com/ClementPinard/Pytorch-Correlation-extension.git
@@ -99,8 +100,8 @@ Results:
 1. Prepare datasets:
 
     Please follow the below instruction to prepare datasets in each corresponding folder.
-    * **Static** 
-    
+    * **Static**
+
         [datasets/Static](datasets/Static): pre-training dataset with static images. Guidance can be found in [AFB-URR](https://github.com/xmlyqing00/AFB-URR), which we referred to in the implementation of the pre-training.
     * **YouTube-VOS**
 

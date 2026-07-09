@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-
-
 class AverageMeter(object):
     """Computes and stores the average and current value"""
     def __init__(self, momentum=0.999):

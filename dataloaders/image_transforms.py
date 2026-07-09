@@ -6,21 +6,23 @@ import numpy as np
 from PIL import Image, ImageFilter
 from collections.abc import Sequence
 
+Resampling = Image.Resampling
+
 import torch
 import torchvision.transforms.functional as TF
 
 _pil_interpolation_to_str = {
-    Image.NEAREST: 'PIL.Image.NEAREST',
-    Image.BILINEAR: 'PIL.Image.BILINEAR',
-    Image.BICUBIC: 'PIL.Image.BICUBIC',
-    Image.LANCZOS: 'PIL.Image.LANCZOS',
-    Image.HAMMING: 'PIL.Image.HAMMING',
-    Image.BOX: 'PIL.Image.BOX',
+    Resampling.NEAREST: 'PIL.Image.NEAREST',
+    Resampling.BILINEAR: 'PIL.Image.BILINEAR',
+    Resampling.BICUBIC: 'PIL.Image.BICUBIC',
+    Resampling.LANCZOS: 'PIL.Image.LANCZOS',
+    Resampling.HAMMING: 'PIL.Image.HAMMING',
+    Resampling.BOX: 'PIL.Image.BOX',
 }
 
 
 def _get_image_size(img):
-    if TF._is_pil_image(img):
+    if isinstance(img, Image.Image):
         return img.size
     elif isinstance(img, torch.Tensor) and img.dim() > 2:
         return img.shape[-2:][::-1]
@@ -92,40 +94,64 @@ class GaussianBlur(object):
 
 
 class RandomAffine(object):
-    """Random affine transformation of the image keeping center invariant
+    """
+    Random affine transformation of the image keeping center invariant.
 
     Args:
-        degrees (sequence or float or int): Range of degrees to select from.
-            If degrees is a number instead of sequence like (min, max), the range of degrees
-            will be (-degrees, +degrees). Set to 0 to deactivate rotations.
-        translate (tuple, optional): tuple of maximum absolute fraction for horizontal
-            and vertical translations. For example translate=(a, b), then horizontal shift
-            is randomly sampled in the range -img_width * a < dx < img_width * a and vertical shift is
-            randomly sampled in the range -img_height * b < dy < img_height * b. Will not translate by default.
-        scale (tuple, optional): scaling factor interval, e.g (a, b), then scale is
-            randomly sampled from the range a <= scale <= b. Will keep original scale by default.
-        shear (sequence or float or int, optional): Range of degrees to select from.
-            If shear is a number, a shear parallel to the x axis in the range (-shear, +shear)
-            will be apllied. Else if shear is a tuple or list of 2 values a shear parallel to the x axis in the
-            range (shear[0], shear[1]) will be applied. Else if shear is a tuple or list of 4 values,
-            a x-axis shear in (shear[0], shear[1]) and y-axis shear in (shear[2], shear[3]) will be applied.
-            Will not apply shear by default
-        resample ({PIL.Image.NEAREST, PIL.Image.BILINEAR, PIL.Image.BICUBIC}, optional):
-            An optional resampling filter. See `filters`_ for more information.
-            If omitted, or if the image has mode "1" or "P", it is set to PIL.Image.NEAREST.
-        fillcolor (tuple or int): Optional fill color (Tuple for RGB Image And int for grayscale) for the area
-            outside the transform in the output image.(Pillow>=5.0.0)
+        degrees (sequence or float or int):
+            Range of degrees to select from.
+            If degrees is a number instead of a sequence like (min, max),
+            the range of degrees will be (-degrees, +degrees).
+            Set to 0 to deactivate rotations.
 
-    .. _filters: https://pillow.readthedocs.io/en/latest/handbook/concepts.html#filters
+        translate (tuple, optional):
+            Tuple of maximum absolute fraction for horizontal and vertical
+            translations. For example translate=(a, b), then horizontal shift
+            is randomly sampled in the range
+            -img_width * a < dx < img_width * a and vertical shift is
+            randomly sampled in the range
+            -img_height * b < dy < img_height * b.
+            Will not translate by default.
 
+        scale (tuple, optional):
+            Scaling factor interval, e.g. (a, b), then scale is randomly
+            sampled from the range a <= scale <= b.
+            Will keep original scale by default.
+
+        shear (sequence or float or int, optional):
+            Range of degrees to select from.
+
+            If shear is a number, a shear parallel to the x-axis in the range
+            (-shear, +shear) will be applied.
+
+            Else if shear is a tuple or list of 2 values, a shear parallel
+            to the x-axis in the range (shear[0], shear[1]) will be applied.
+
+            Else if shear is a tuple or list of 4 values:
+                (shear[0], shear[1]) -> x-axis shear range
+                (shear[2], shear[3]) -> y-axis shear range
+
+            Will not apply shear by default.
+
+        interpolation (InterpolationMode or PIL resampling filter, optional):
+            Desired interpolation enum defined by torchvision.transforms.
+            Default is Resampling.NEAREST.
+
+        fill (sequence or number, optional):
+            Pixel fill value for the area outside the transformed image.
+            Can be a tuple for RGB images or a scalar for grayscale images.
+            Default is 0.
+
+    .. _filters:
+        https://pillow.readthedocs.io/en/latest/handbook/concepts.html#filters
     """
     def __init__(self,
-                 degrees,
-                 translate=None,
-                 scale=None,
-                 shear=None,
-                 resample=False,
-                 fillcolor=0):
+                degrees,
+                translate=None,
+                scale=None,
+                shear=None,
+                interpolation=Resampling.NEAREST,
+                fill=0):
         if isinstance(degrees, numbers.Number):
             if degrees < 0:
                 raise ValueError(
@@ -171,8 +197,8 @@ class RandomAffine(object):
         else:
             self.shear = shear
 
-        self.resample = resample
-        self.fillcolor = fillcolor
+        self.interpolation = interpolation
+        self.fill = fill
 
     @staticmethod
     def get_params(degrees, translate, scale_ranges, shears, img_size):
@@ -217,11 +243,19 @@ class RandomAffine(object):
         """
         ret = self.get_params(self.degrees, self.translate, self.scale,
                               self.shear, img.size)
-        img = TF.affine(img,
-                        *ret,
-                        resample=self.resample,
-                        fillcolor=self.fillcolor)
-        mask = TF.affine(mask, *ret, resample=Image.NEAREST, fillcolor=0)
+        img = TF.affine(
+            img,
+            *ret,
+            interpolation=self.interpolation,
+            fill=self.fill
+        )
+
+        mask = TF.affine(
+            mask,
+            *ret,
+            interpolation=Resampling.NEAREST,
+            fill=0
+        )
         return img, mask
 
     def __repr__(self):
@@ -232,13 +266,13 @@ class RandomAffine(object):
             s += ', scale={scale}'
         if self.shear is not None:
             s += ', shear={shear}'
-        if self.resample > 0:
-            s += ', resample={resample}'
-        if self.fillcolor != 0:
-            s += ', fillcolor={fillcolor}'
+        if self.interpolation is not None:
+            s += ', interpolation={interpolation}'
+        if self.fill != 0:
+            s += ', fill={fill}'
         s += ')'
         d = dict(self.__dict__)
-        d['resample'] = _pil_interpolation_to_str[d['resample']]
+        d['interpolation'] = _pil_interpolation_to_str[d['interpolation']]
         return s.format(name=self.__class__.__name__, **d)
 
 
@@ -359,7 +393,7 @@ class RandomResizedCrop(object):
                  size,
                  scale=(0.08, 1.0),
                  ratio=(3. / 4., 4. / 3.),
-                 interpolation=Image.BILINEAR):
+                 interpolation=Resampling.BILINEAR):
         if isinstance(size, (tuple, list)):
             self.size = size
         else:
@@ -426,7 +460,7 @@ class RandomResizedCrop(object):
         i, j, h, w = self.get_params(img, self.scale, self.ratio)
         # print(i, j, h, w)
         img = TF.resized_crop(img, i, j, h, w, self.size, self.interpolation)
-        mask = TF.resized_crop(mask, i, j, h, w, self.size, Image.NEAREST)
+        mask = TF.resized_crop(mask, i, j, h, w, self.size, Resampling.NEAREST)
         return img, mask
 
     def __repr__(self):
@@ -501,7 +535,7 @@ class Resize(torch.nn.Module):
             Default is ``PIL.Image.BILINEAR``. If input is Tensor, only ``PIL.Image.NEAREST``, ``PIL.Image.BILINEAR``
             and ``PIL.Image.BICUBIC`` are supported.
     """
-    def __init__(self, size, interpolation=Image.BILINEAR):
+    def __init__(self, size, interpolation=Resampling.BILINEAR):
         super().__init__()
         if not isinstance(size, (int, Sequence)):
             raise TypeError("Size should be int or sequence. Got {}".format(
@@ -521,7 +555,7 @@ class Resize(torch.nn.Module):
             PIL Image or Tensor: Rescaled image.
         """
         img = TF.resize(img, self.size, self.interpolation)
-        mask = TF.resize(mask, self.size, Image.NEAREST)
+        mask = TF.resize(mask, self.size, Resampling.NEAREST)
         return img, mask
 
     def __repr__(self):
