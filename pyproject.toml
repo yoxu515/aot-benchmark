@@ -15,10 +15,5 @@ dependencies = [
     "Pillow>=11.0.0",
 ]
 
-[project.optional-dependencies]
-demo = [
-    "scikit-image==0.25.2",
-]
-
 [tool.setuptools.packages.find]
 where = ["."]

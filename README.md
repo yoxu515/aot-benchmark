@@ -69,9 +69,6 @@ General examples (Messi and Kobe):
      cd ..
      ```
 
-Optional:
-   * scikit-image==0.25.2 (if you want to run our **Demo**, please install)
-
 ## Installation
 
 ```bash
@@ -84,11 +81,6 @@ For development:
 pip install -e .
 ```
 
-Optional demo dependencies:
-
-```bash
-pip install .[demo]
-```
 ## Running docker file
 
 docker build -f Dockerfile -t myimage .
