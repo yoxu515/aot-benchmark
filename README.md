@@ -60,8 +60,6 @@ General examples (Messi and Kobe):
    * pytorch >= 1.7.0 and torchvision
    * opencv-python
    * Pillow
-   * tqdm
-   * myutils
    * Pytorch Correlation. Recommend to install from [source](https://github.com/ClementPinard/Pytorch-Correlation-extension):
      ```bash
      git clone https://github.com/ClementPinard/Pytorch-Correlation-extension.git
